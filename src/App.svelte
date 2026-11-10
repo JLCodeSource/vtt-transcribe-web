@@ -3,8 +3,13 @@
   import Dropzone from './components/Dropzone.svelte';
   import ProgressView from './components/ProgressView.svelte';
   import TranscriptViewer from './components/TranscriptViewer.svelte';
+  import SpeakerReview from './components/SpeakerReview.svelte';
   import { OpenAIEngine } from './lib/openai';
   import { LocalEngine } from './lib/local';
+  import { OpenAITranslator, LocalTranslator } from './lib/translate';
+  import { Diarizer } from './lib/diarize';
+  import { decodeToMono16k } from './lib/audio';
+  import { labelSegments, type SpeakerNames, type Turn } from './lib/speakers';
   import { EngineError, type Progress, type Segment } from './lib/types';
   import { applyTheme, forgetKey, loadSavedKey, loadTheme, saveKey, type Theme } from './lib/settings';
 
@@ -17,7 +22,15 @@
   let theme = $state<Theme>(loadTheme());
   let file = $state<File | null>(null);
   let progress = $state<Progress | null>(null);
-  let segments = $state<Segment[] | null>(null);
+  let target = $state('');
+  let diarize = $state(false);
+  let speakerCount = $state('auto');
+  let raw = $state<Segment[] | null>(null);
+  let turns = $state<Turn[] | null>(null);
+  let names = $state<SpeakerNames>({});
+  let reviewing = $state(false);
+  const segments = $derived(raw && turns ? labelSegments(raw, turns, names) : raw);
+  const diarizer = new Diarizer();
   let error = $state('');
   let abort: AbortController | null = null;
 
@@ -35,21 +48,56 @@
     error = '';
     if (engine === 'openai') (remember ? saveKey(apiKey.trim()) : forgetKey());
     abort = new AbortController();
+    const signal = abort.signal;
+    const onProgress = (p: Progress) => (progress = p);
     progress = { phase: 'decode', fraction: null, message: 'Starting…' };
     try {
       const eng = engine === 'openai' ? new OpenAIEngine({ apiKey }) : new LocalEngine({ model });
-      segments = await eng.transcribe(file, { language, signal: abort.signal, onProgress: (p) => (progress = p) });
+      let segs = await eng.transcribe(file, { language, signal, onProgress });
+      if (target) segs = await translateAll(segs, signal, onProgress);
+      raw = segs;
+      if (diarize && segs.length) {
+        progress = { phase: 'decode', fraction: null, message: 'Preparing audio for speaker detection…' };
+        const pcm = await decodeToMono16k(file);
+        turns = await diarizer.run(pcm, {
+          speakers: speakerCount === 'auto' ? undefined : Number(speakerCount),
+          signal,
+          onProgress,
+        });
+        reviewing = turns.length > 0;
+        if (!turns.length) turns = null;
+      }
     } catch (e) {
       if (!(e instanceof EngineError && e.kind === 'aborted')) {
         error = e instanceof Error ? e.message : 'Something went wrong.';
       }
+      // keep whatever finished (e.g. transcript when only speaker detection failed)
     } finally {
       progress = null;
       abort = null;
     }
   }
+
+  async function translateAll(segs: Segment[], signal: AbortSignal, onProgress: (p: Progress) => void): Promise<Segment[]> {
+    const tr = engine === 'openai' ? new OpenAITranslator({ apiKey }) : new LocalTranslator();
+    const out = await tr.translate(segs, { from: language, to: target, signal, onProgress });
+    return segs.map((s, i) => ({ ...s, translation: out[i] }));
+  }
+
+  function confirmSpeakers(t: Turn[], n: SpeakerNames) {
+    turns = t;
+    names = n;
+    reviewing = false;
+  }
+  function skipSpeakers() {
+    turns = null;
+    reviewing = false;
+  }
   function reset() {
-    segments = null;
+    raw = null;
+    turns = null;
+    names = {};
+    reviewing = false;
     file = null;
     error = '';
   }
@@ -70,15 +118,22 @@
     <div class="error" role="alert">{error}</div>
   {/if}
 
-  {#if segments}
-    <TranscriptViewer {segments} {basename} onreset={reset} />
+  {#if raw && reviewing && turns && file}
+    <SpeakerReview {turns} {names} segments={raw} {file} onconfirm={confirmSpeakers} onskip={skipSpeakers} />
+  {:else if segments}
+    <TranscriptViewer
+      {segments}
+      {basename}
+      onreset={reset}
+      onspeakers={turns ? () => (reviewing = true) : undefined}
+    />
   {:else if progress}
     <ProgressView {progress} oncancel={() => abort?.abort()} />
   {:else}
-    <EnginePicker bind:engine bind:apiKey bind:remember bind:model bind:language />
+    <EnginePicker bind:engine bind:apiKey bind:remember bind:model bind:language bind:target bind:diarize bind:speakerCount />
     <Dropzone {file} onfile={(f) => ((file = f), (error = ''))} />
     <div class="go">
-      <button type="button" class="primary" disabled={!canStart} onclick={start}>Transcribe</button>
+      <button type="button" class="primary" disabled={!canStart} onclick={start}>{target || diarize ? "Transcribe & process" : "Transcribe"}</button>
       {#if file && engine === 'openai' && !apiKey.trim()}
         <span class="hint">Enter your API key to continue.</span>
       {/if}

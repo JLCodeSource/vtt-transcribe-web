@@ -1,5 +1,7 @@
 <script lang="ts">
   import { LOCAL_MODELS, hasWebGpu } from '../lib/local';
+  import { LANGUAGES } from '../lib/languages';
+  import { DIARIZE_DOWNLOAD } from '../lib/diarize';
 
   export type EngineChoice = 'openai' | 'local';
   interface Props {
@@ -8,6 +10,9 @@
     remember: boolean;
     model: string;
     language: string;
+    target: string;
+    diarize: boolean;
+    speakerCount: string;
   }
   let {
     engine = $bindable(),
@@ -15,15 +20,14 @@
     remember = $bindable(),
     model = $bindable(),
     language = $bindable(),
+    target = $bindable(),
+    diarize = $bindable(),
+    speakerCount = $bindable(),
   }: Props = $props();
 
   const gpu = hasWebGpu();
   const picked = $derived(LOCAL_MODELS.find((m) => m.id === model) ?? LOCAL_MODELS[1]);
-  const LANGS: Array<[string, string]> = [
-    ['auto', 'Detect automatically'], ['en', 'English'], ['es', 'Spanish'], ['fr', 'French'],
-    ['de', 'German'], ['it', 'Italian'], ['pt', 'Portuguese'], ['nl', 'Dutch'], ['ja', 'Japanese'],
-    ['zh', 'Chinese'], ['ar', 'Arabic'], ['hi', 'Hindi'], ['ru', 'Russian'],
-  ];
+  const LANGS: Array<[string, string]> = [['auto', 'Detect automatically'], ...LANGUAGES];
 </script>
 
 <fieldset class="picker">
@@ -93,6 +97,33 @@
   </select>
   {#if engine === 'local' && language === 'auto'}
     <p class="hint">On-device mode cannot auto-detect the language yet: it assumes English. Pick the spoken language for best results.</p>
+  {/if}
+
+  <label for="target" class="lang">Translate the transcript into</label>
+  <select id="target" bind:value={target}>
+    <option value="">Don't translate</option>
+    {#each LANGUAGES as [code, name] (code)}<option value={code}>{name}</option>{/each}
+  </select>
+  {#if target && engine === 'local'}
+    <p class="hint">
+      On-device translation uses small models (≈ 75 MB per language pair) and is rougher than OpenAI. Languages other
+      than English are translated via English. Set the spoken language above.
+    </p>
+  {/if}
+
+  <label class="check lang">
+    <input type="checkbox" bind:checked={diarize} />
+    Identify the speakers (runs on this device; {DIARIZE_DOWNLOAD})
+  </label>
+  {#if diarize}
+    <div class="panel">
+      <label for="spk">How many speakers?</label>
+      <select id="spk" bind:value={speakerCount}>
+        <option value="auto">Detect automatically</option>
+        {#each [1, 2, 3, 4, 5, 6] as n (n)}<option value={String(n)}>{n}</option>{/each}
+      </select>
+      <p class="hint">You can merge, split and name speakers afterwards.</p>
+    </div>
   {/if}
 </fieldset>
 

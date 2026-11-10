@@ -3,6 +3,10 @@ export interface Segment {
   start: number;
   end: number;
   text: string;
+  /** speaker name once diarization has run */
+  speaker?: string;
+  /** text translated into the chosen target language */
+  translation?: string;
 }
 
 export type ProgressPhase = 'decode' | 'download' | 'load' | 'transcribe';
