@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Regenerates the speech fixtures with Piper, an open-source neural TTS. No API key, no cloud:
-#   e2e/fixtures/two-voices.wav + .rttm   two-person conversation (voices ryan / amy) with exact speaker turns
+#   e2e/fixtures/two-voices.wav + .rttm   two-person conversation with exact speaker turns
+# Voices (licences, see NOTICE): en_US-libritts_r speaker 400 (CC BY 4.0), en_US-ljspeech (public domain),
+#   fr_FR-siwis (CC BY 4.0), es_ES-davefx (CC0). Do NOT swap in NC/SA voices (e.g. ryan, hfc_*): the output ships in a BSD repo.
 #   e2e/fixtures/speech-fr.mp3, speech-es.mp3   short French / Spanish clips for language detection
 # Needs docker; downloads the voices (~250 MB, cached in .cache/piper) from Hugging Face on first run.
 set -euo pipefail
@@ -15,11 +17,11 @@ FF="docker run --rm -u $U -v $WORK:/w -w /w --entrypoint ffmpeg jrottenberg/ffmp
 FP="docker run --rm -u $U -v $WORK:/w -w /w --entrypoint ffprobe jrottenberg/ffmpeg:6.1-ubuntu2204"
 
 [[ -d $CACHE/lib/piper ]] || docker run --rm -u "$U" -e HOME=/tmp -v "$CACHE:/c" python:3.12-slim pip install -q --target /c/lib piper-tts
-[[ -f $CACHE/voices/en_US-ryan-medium.onnx ]] || $PY python -m piper.download_voices --download-dir /c/voices \
-  en_US-ryan-medium en_US-amy-medium fr_FR-siwis-medium es_ES-davefx-medium
+[[ -f $CACHE/voices/en_US-libritts_r-medium.onnx ]] || $PY python -m piper.download_voices --download-dir /c/voices \
+  en_US-libritts_r-medium en_US-ljspeech-medium fr_FR-siwis-medium es_ES-davefx-medium
 
-say() { # voice text outfile
-  printf '%s' "$2" | $PY_I python -m piper -m "/c/voices/$1.onnx" -f "/w/$3" >/dev/null
+say() { # voice text outfile [speaker-id]
+  printf '%s' "$2" | $PY_I python -m piper -m "/c/voices/$1.onnx" ${4:+--speaker "$4"} -f "/w/$3" >/dev/null
 }
 
 # --- language clips
@@ -41,8 +43,8 @@ TURNS=(
 : > "$WORK/list.txt"; : > "$OUT/two-voices.rttm"; t=0
 for i in "${!TURNS[@]}"; do
   spk=${TURNS[$i]%%|*}; text=${TURNS[$i]#*|}
-  voice=en_US-ryan-medium; [[ $spk == B ]] && voice=en_US-amy-medium
-  say "$voice" "$text" "turn-$i.wav"
+  voice=en_US-libritts_r-medium; sid=400; [[ $spk == B ]] && { voice=en_US-ljspeech-medium; sid=; }
+  say "$voice" "$text" "turn-$i.wav" $sid
   $FF -y -loglevel error -i "turn-$i.wav" -ac 1 -ar 16000 -af "apad=pad_dur=0.4" "n-$i.wav"
   dur=$($FP -v error -show_entries format=duration -of csv=p=0 "n-$i.wav")
   speech=$(awk -v d="$dur" 'BEGIN{printf "%.3f", d-0.4}')

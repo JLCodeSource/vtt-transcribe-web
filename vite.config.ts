@@ -16,6 +16,7 @@ export default defineConfig({
     conditions: ['browser', 'module', process.env.VITEST ? 'development' : 'production', 'default'],
   },
   server: { host: '0.0.0.0', port: 3000 },
+  base: './', // relative asset URLs: works from any sub-path (e.g. GitHub Pages project sites)
   build: { outDir: 'dist', target: 'es2022' },
   test: {
     globals: true,

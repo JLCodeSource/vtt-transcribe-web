@@ -1,0 +1,30 @@
+VTT Transcribe Web
+Copyright (c) 2026, JLCodeSource. BSD 3-Clause (see LICENSE).
+
+Third-party software shipped in the built site
+  Svelte                    MIT
+  Hugging Face transformers.js   Apache-2.0
+  ONNX Runtime Web (WebAssembly runtime, served from /ort/)   MIT
+
+Models (NOT stored in this repository; the visitor's browser downloads them from huggingface.co when the
+on-device engine is used, and caches them). Licences are as declared on each model card; check the cards
+before redistributing anything yourself.
+  OpenAI Whisper tiny / base / small (ONNX conversions by onnx-community)   Apache-2.0 per model card
+        https://huggingface.co/openai/whisper-small
+  Helsinki-NLP OPUS-MT translation models (ONNX conversions by Xenova)      Apache-2.0 per model card
+        https://huggingface.co/Helsinki-NLP/opus-mt-fr-en  - trained on OPUS data; credit: J. Tiedemann, Helsinki-NLP
+  pyannote segmentation-3.0 (ONNX conversion by onnx-community)            MIT
+        https://huggingface.co/pyannote/segmentation-3.0
+  Microsoft WavLM-Base-Plus-SV speaker verification (ONNX conversion by Xenova)
+        https://huggingface.co/microsoft/wavlm-base-plus-sv
+        The model card declares no licence; Microsoft's WavLM code (microsoft/unilm) is MIT-licensed.
+
+Test fixtures (e2e/fixtures/)
+  hello_conversation.mp3, hello_conversation-derived video clips: created for the vtt-transcribe project.
+  two-voices.wav, speech-fr.mp3, speech-es.mp3 are synthesised with Piper (https://github.com/OHF-Voice/piper1-gpl,
+  GPL, used only as a build-time tool; its generated audio is not a derivative of the tool) using these voices:
+    en_US-libritts_r (speaker 400)  CC BY 4.0     LibriTTS-R, Y. Koizumi et al., http://www.openslr.org/141/
+    en_US-ljspeech                  public domain LJ Speech dataset, K. Ito, https://keithito.com/LJ-Speech-Dataset/
+    fr_FR-siwis                     CC BY 4.0     SIWIS French Speech Synthesis Database, Univ. of Edinburgh
+    es_ES-davefx                    CC0           DaveFX
+  Voices under non-commercial or share-alike licences must not be used for these fixtures.
