@@ -1,0 +1,5 @@
+# E2E runner: Playwright browsers + Chrome (AAC video) + Vulkan loader (so Chromium can use the host NVIDIA GPU for WebGPU).
+FROM mcr.microsoft.com/playwright:v1.49.1-jammy
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends libvulkan1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g playwright@1.49.1 >/dev/null 2>&1 && playwright install chrome

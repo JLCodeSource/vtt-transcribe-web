@@ -26,6 +26,7 @@
   let diarize = $state(false);
   let speakerCount = $state('auto');
   let raw = $state<Segment[] | null>(null);
+  let ranOn = $state('');
   let turns = $state<Turn[] | null>(null);
   let names = $state<SpeakerNames>({});
   let reviewing = $state(false);
@@ -54,6 +55,7 @@
     try {
       const eng = engine === 'openai' ? new OpenAIEngine({ apiKey }) : new LocalEngine({ model });
       const segs = await eng.transcribe(file, { language, signal, onProgress });
+      ranOn = eng instanceof LocalEngine ? (eng.device === 'webgpu' ? 'on this device, GPU (WebGPU)' : 'on this device, CPU (WebAssembly)') : 'by OpenAI';
       raw = segs;
       if (diarize && segs.length) {
         progress = { phase: 'decode', fraction: null, message: 'Preparing audio for speaker detection…' };
@@ -144,6 +146,7 @@
   {:else if raw && reviewing && turns && file}
     <SpeakerReview {turns} {names} segments={raw} {file} onconfirm={confirmSpeakers} onskip={skipSpeakers} />
   {:else if segments}
+    {#if ranOn}<p class="ranon" data-testid="ran-on">Transcribed {ranOn}.</p>{/if}
     <TranscriptViewer
       {segments}
       {basename}
@@ -176,6 +179,6 @@
   .tag { margin: 0; color: var(--muted); }
   .error { background: var(--err-bg); color: var(--err); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--err); }
   .go { display: flex; gap: 1rem; align-items: center; }
-  .hint { color: var(--muted); font-size: 0.9rem; }
+  .hint, .ranon { color: var(--muted); font-size: 0.9rem; margin: 0; }
   footer { color: var(--muted); font-size: 0.85rem; margin-top: 1rem; }
 </style>

@@ -35,11 +35,12 @@ Verify: open DevTools → Network while transcribing (only your origin, `api.ope
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npm install
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npx vitest run          # unit tests
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npx svelte-check        # types
-docker run --rm -e HOME=/tmp -e OWNER=$(id -u):$(id -g) --ipc=host -v "$PWD":/w -w /w mcr.microsoft.com/playwright:v1.49.1-jammy \
-  sh -c 'npx playwright install chrome && npx playwright test; chown -R $OWNER .'   # root: installs Chrome for the AAC-video test
-# The e2e suite runs on Chromium, Pixel-7 emulation, Firefox, WebKit and branded Chrome (AAC video), and includes a real tiny Whisper
-# model (downloaded from Hugging Face, WASM) transcribing e2e/fixtures/hello_conversation.mp3.
-# No network to huggingface.co? run the other projects only: npx playwright test --project=desktop --project=mobile --project=firefox --project=webkit --project=chrome. WebGPU is the only thing CI cannot test.
+./scripts/e2e.sh                  # full e2e suite in a container (builds Dockerfile.e2e once)
+./scripts/e2e.sh --project=real   # any `playwright test` arguments
+# The suite runs on Chromium, Pixel-7 emulation, Firefox, WebKit and branded Chrome (AAC video), plus a 'real'
+# project (real tiny Whisper and real speaker models, downloaded from Hugging Face) and, when the host has an
+# NVIDIA GPU and the NVIDIA container toolkit (CDI), a 'gpu' project that runs Whisper on WebGPU. e2e.sh detects
+# the GPU automatically; without one the gpu project simply isn't part of the run.
 ```
 
 Everything is tested locally; GitHub Actions are intentionally disabled on this repo. Do not host publicly until ready. Note: the `/ort` runtime files include an 11 MB `.wasm`; a host with a 25 MB per-file limit is fine, but check any other limits.
