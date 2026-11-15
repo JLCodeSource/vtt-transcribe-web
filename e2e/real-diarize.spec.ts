@@ -1,15 +1,19 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-// Opt-in: downloads the real speaker models (~100 MB) and runs them in headless Chromium (WASM).
-// REAL_DIARIZE=/path/to/conv.wav (with conv.rttm next to it) npx playwright test real-diarize --project=desktop
-const wav = process.env.REAL_DIARIZE;
-test.skip(!wav, 'set REAL_DIARIZE=/path/to/audio.wav (needs a matching .rttm)');
+// Downloads the real speaker models (~100 MB) and runs them in Chromium (WASM) on e2e/fixtures/two-voices.wav:
+// a 6-turn conversation between two distinct synthetic voices (made by scripts/gen-two-voice-fixture.sh),
+// with exact reference turns in two-voices.rttm. REAL_DIARIZE=/other.wav (+ /other.rttm) overrides the clip.
+// SKIP_REAL_MODEL=1 skips (needs huggingface.co).
+const wav = process.env.REAL_DIARIZE ?? join(process.cwd(), 'e2e/fixtures/two-voices.wav');
+test.skip(!!process.env.SKIP_REAL_MODEL, 'SKIP_REAL_MODEL set');
 test.setTimeout(900000);
 
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' };
 
-test('real speaker models agree with the reference speaker turns', async ({ page }) => {
+test('real speaker models agree with the reference speaker turns', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'runs once, on desktop Chromium');
   const truth = readFileSync(wav!.replace(/\.wav$/, '.rttm'), 'utf8')
     .trim().split('\n').map((l) => l.split(/\s+/))
     .map((f) => ({ start: Number(f[3]), end: Number(f[3]) + Number(f[4]), spk: f[7] }));
@@ -26,6 +30,7 @@ test('real speaker models agree with the reference speaker turns', async ({ page
   await page.getByLabel(/Use OpenAI instead/).check();
   await page.getByLabel('Your OpenAI API key').fill('sk-test');
   await page.getByLabel('Identify the speakers').check();
+  await page.getByLabel('How many speakers?').selectOption('2');
   await page.getByTestId('file-input').setInputFiles(wav!);
   const t0 = Date.now();
   await page.getByRole('button', { name: /Transcribe/ }).click();
