@@ -35,7 +35,8 @@ Verify: open DevTools → Network while transcribing (only your origin, `api.ope
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npm install
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npx vitest run          # unit tests
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npx svelte-check        # types
-docker run --rm -e HOME=/tmp --ipc=host -v "$PWD":/w -w /w mcr.microsoft.com/playwright:v1.49.1-jammy \
+docker run --rm -e HOME=/tmp -e OWNER=$(id -u):$(id -g) --ipc=host -v "$PWD":/w -w /w mcr.microsoft.com/playwright:v1.49.1-jammy \
+  sh -c 'npx playwright install chrome && npx playwright test; chown -R $OWNER .'   # root: installs Chrome for the AAC-video test
   sh -c 'npx playwright install chrome && npx playwright test; chown -R $(id -u):$(id -g) . 2>/dev/null' # (run as root: installs Chrome for the AAC-video test)                                         # e2e (mocked OpenAI, stub model)
 # The e2e suite runs on Chromium, Pixel-7 emulation, Firefox, WebKit and branded Chrome (AAC video), and includes a real tiny Whisper
 # model (downloaded from Hugging Face, WASM) transcribing e2e/fixtures/hello_conversation.mp3.
