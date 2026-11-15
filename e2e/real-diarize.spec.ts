@@ -23,6 +23,7 @@ test('real speaker models agree with the reference speaker turns', async ({ page
     });
   });
   await page.goto('/');
+  await page.getByLabel(/Use OpenAI instead/).check();
   await page.getByLabel('Your OpenAI API key').fill('sk-test');
   await page.getByLabel('Identify the speakers').check();
   await page.getByTestId('file-input').setInputFiles(wav!);

@@ -41,6 +41,7 @@ test('BYOK: sends audio straight to OpenAI with the key, shows transcript, expor
   page.on('dialog', () => { throw new Error('unexpected alert/confirm dialog'); });
 
   await page.goto('/');
+  await page.getByLabel(/Use OpenAI instead/).check();
   await page.getByLabel('Your OpenAI API key').fill(FAKE_KEY);
   await upload(page);
   await page.getByRole('button', { name: 'Transcribe' }).click();
@@ -68,12 +69,15 @@ test('BYOK: sends audio straight to OpenAI with the key, shows transcript, expor
 test('BYOK: key is remembered only when the user opts in', async ({ page }) => {
   await mockOpenAI(page);
   await page.goto('/');
+  await page.getByLabel(/Use OpenAI instead/).check();
   await page.getByLabel('Your OpenAI API key').fill(FAKE_KEY);
   await page.getByLabel(/Remember the key/).check();
   await upload(page);
   await page.getByRole('button', { name: 'Transcribe' }).click();
   await expect(page.getByText('Hello there.')).toBeVisible();
   await page.reload();
+  await expect(page.getByLabel('Your OpenAI API key')).toHaveCount(0); // local by default after reload
+  await page.getByLabel(/Use OpenAI instead/).check();
   await expect(page.getByLabel('Your OpenAI API key')).toHaveValue(FAKE_KEY);
 });
 
@@ -81,6 +85,7 @@ test('invalid key shows an inline error, not an alert popup', async ({ page }) =
   await mockOpenAI(page, 401);
   page.on('dialog', () => { throw new Error('unexpected dialog'); });
   await page.goto('/');
+  await page.getByLabel(/Use OpenAI instead/).check();
   await page.getByLabel('Your OpenAI API key').fill(FAKE_KEY);
   await upload(page);
   await page.getByRole('button', { name: 'Transcribe' }).click();
@@ -88,8 +93,20 @@ test('invalid key shows an inline error, not an alert popup', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Transcribe' })).toBeEnabled();
 });
 
+test('on-device is the default; OpenAI is an explicit opt-in', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByLabel(/Use OpenAI instead/)).not.toBeChecked();
+  await expect(page.getByLabel('Your OpenAI API key')).toHaveCount(0);
+  await expect(page.getByLabel('Model size')).toBeVisible();
+  await page.getByLabel(/Use OpenAI instead/).check();
+  await expect(page.getByLabel('Your OpenAI API key')).toBeVisible();
+  await page.getByLabel(/Use OpenAI instead/).uncheck();
+  await expect(page.getByLabel('Your OpenAI API key')).toHaveCount(0);
+});
+
 test('Transcribe is disabled until a key and file are provided', async ({ page }) => {
   await page.goto('/');
+  await page.getByLabel(/Use OpenAI instead/).check();
   const go = page.getByRole('button', { name: 'Transcribe' });
   await expect(go).toBeDisabled();
   await upload(page);
@@ -110,7 +127,6 @@ test('on-device engine (stubbed model) needs no key and makes no network calls',
   page.on('request', (r) => { const h = new URL(r.url()).hostname; if (!['localhost', '127.0.0.1'].includes(h) && r.url().startsWith('http')) external.push(r.url()); });
 
   await page.goto('/');
-  await page.getByRole('radio', { name: /On this device/ }).check();
   await expect(page.getByLabel('Your OpenAI API key')).toHaveCount(0);
   await upload(page);
   await page.getByRole('button', { name: 'Transcribe' }).click();

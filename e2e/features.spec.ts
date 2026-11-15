@@ -49,6 +49,7 @@ async function setup(page: Page) {
     });
   });
   await page.goto('/');
+  await page.getByLabel(/Use OpenAI instead/).check();
   await page.getByLabel('Your OpenAI API key').fill(KEY);
   await page.getByTestId('file-input').setInputFiles({ name: 'call.wav', mimeType: 'audio/wav', buffer: twoVoiceWav() });
   return chat;

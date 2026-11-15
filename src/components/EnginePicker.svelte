@@ -33,11 +33,45 @@
 <fieldset class="picker">
   <legend>How should the audio be transcribed?</legend>
 
-  <label class="card" class:active={engine === 'openai'}>
-    <input type="radio" name="engine" value="openai" bind:group={engine} />
+  <div class="card active default">
     <span>
-      <strong>OpenAI Whisper — with your own API key</strong>
-      <small>Fast and accurate. Your audio goes from this browser straight to OpenAI and is billed to your OpenAI account.</small>
+      <strong>On this device (default) — no key, no upload</strong>
+      <small>Whisper runs inside your browser. Your audio never leaves your computer. Free, but slower and less accurate than OpenAI.</small>
+    </span>
+  </div>
+
+  {#if engine === 'local'}
+    <div class="panel">
+      <label for="model">Model size</label>
+      <select id="model" bind:value={model}>
+        {#each LOCAL_MODELS as m (m.id)}
+          <option value={m.id}>{m.label} · {m.size}</option>
+        {/each}
+      </select>
+      <p class="hint">
+        {picked.note} The model downloads once from Hugging Face and is cached by your browser.
+        {#if gpu}
+          Your browser supports WebGPU, so the GPU will be used (faster, but it downloads larger weights: {picked.gpuSize}).
+        {:else}
+          Your browser has no WebGPU, so this runs on the CPU via WebAssembly: expect it to be several times slower than
+          real time on long recordings.
+        {/if}
+      </p>
+    </div>
+  {/if}
+
+  <label class="check optin">
+    <input
+      type="checkbox"
+      checked={engine === 'openai'}
+      onchange={(e) => (engine = e.currentTarget.checked ? 'openai' : 'local')}
+    />
+    <span>
+      <strong>Use OpenAI instead (needs your own API key)</strong>
+      <small>
+        Faster and more accurate. Opting in means your audio is uploaded from this browser to OpenAI and billed to your
+        OpenAI account. Off by default.
+      </small>
     </span>
   </label>
 
@@ -60,34 +94,6 @@
         <input type="checkbox" bind:checked={remember} />
         Remember the key on this device (stored unencrypted in this browser's local storage)
       </label>
-    </div>
-  {/if}
-
-  <label class="card" class:active={engine === 'local'}>
-    <input type="radio" name="engine" value="local" bind:group={engine} />
-    <span>
-      <strong>On this device — no key, no upload</strong>
-      <small>Whisper runs inside your browser. Audio never leaves your computer. Free, but slower and less accurate than OpenAI.</small>
-    </span>
-  </label>
-
-  {#if engine === 'local'}
-    <div class="panel">
-      <label for="model">Model size</label>
-      <select id="model" bind:value={model}>
-        {#each LOCAL_MODELS as m (m.id)}
-          <option value={m.id}>{m.label} · {m.size}</option>
-        {/each}
-      </select>
-      <p class="hint">
-        {picked.note} The model downloads once from Hugging Face and is cached by your browser.
-        {#if gpu}
-          Your browser supports WebGPU, so the GPU will be used (faster, but it downloads larger weights: {picked.gpuSize}).
-        {:else}
-          Your browser has no WebGPU, so this runs on the CPU via WebAssembly: expect it to be several times slower than
-          real time on long recordings.
-        {/if}
-      </p>
     </div>
   {/if}
 
@@ -135,7 +141,9 @@
     border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer;
   }
   .card.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
-  .card input { margin-top: 0.35rem; }
+  .default { cursor: default; }
+  .optin { align-items: flex-start; padding: 0.6rem 0.25rem; color: var(--text); }
+  .optin small { display: block; color: var(--muted); }
   .card small { display: block; color: var(--muted); }
   .panel { padding: 0.25rem 0.25rem 0.5rem 1rem; display: grid; gap: 0.4rem; }
   .hint { margin: 0; color: var(--muted); font-size: 0.9rem; }

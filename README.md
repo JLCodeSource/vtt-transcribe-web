@@ -2,6 +2,8 @@
 
 A static, serverless web app that transcribes audio/video **in your browser**. There is no backend.
 
+**On-device is the default** and needs no key. OpenAI is an explicit opt-in (tick "Use OpenAI instead" and paste your own key); nothing is sent to OpenAI unless you do.
+
 Two engines behind one interface (`transcribe(audio, options) -> segments`):
 
 | Engine | How | Key needed | Where the audio goes |

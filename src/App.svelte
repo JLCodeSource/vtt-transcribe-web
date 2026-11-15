@@ -14,7 +14,7 @@
   import { applyTheme, forgetKey, loadSavedKey, loadTheme, saveKey, type Theme } from './lib/settings';
 
   const saved = loadSavedKey();
-  let engine = $state<EngineChoice>('openai');
+  let engine = $state<EngineChoice>('local');
   let apiKey = $state(saved);
   let remember = $state(!!saved);
   let model = $state('base');

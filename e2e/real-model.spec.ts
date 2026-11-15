@@ -10,7 +10,6 @@ test.setTimeout(600000);
 test('real on-device Whisper', async ({ page }) => {
   page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && console.log('console.error:', m.text()));
   await page.goto('/');
-  await page.getByRole('radio', { name: /On this device/ }).check();
   await page.getByLabel('Model size').selectOption(model!);
   await page.getByTestId('file-input').setInputFiles(join(process.cwd(), 'e2e/fixtures/hello_conversation.mp3'));
   const t0 = Date.now();
