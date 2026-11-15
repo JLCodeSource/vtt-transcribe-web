@@ -12,3 +12,4 @@ coverage
 /playwright/.cache/
 /test-results/
 /public/ort/
+/.cache/

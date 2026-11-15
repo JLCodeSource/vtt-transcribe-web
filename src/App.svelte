@@ -28,6 +28,8 @@
   let speakerCount = $state('auto');
   let raw = $state<Segment[] | null>(null);
   let ranOn = $state('');
+  /** language Whisper detected on-device; the translator needs it as its source language */
+  let detectedLang = $state('');
   let turns = $state<Turn[] | null>(null);
   let names = $state<SpeakerNames>({});
   let reviewing = $state(false);
@@ -60,6 +62,7 @@
         ? (eng.device === 'webgpu' ? 'on this device, GPU (WebGPU)' : 'on this device, CPU (WebAssembly)') +
           (eng.detectedLanguage ? `; detected language: ${languageName(eng.detectedLanguage)}` : '')
         : 'by OpenAI';
+      detectedLang = eng instanceof LocalEngine ? (eng.detectedLanguage ?? '') : '';
       raw = segs;
       if (diarize && segs.length) {
         progress = { phase: 'decode', fraction: null, message: 'Preparing audio for speaker detection…' };
@@ -88,7 +91,7 @@
 
   async function translateAll(segs: Segment[], signal: AbortSignal, onProgress: (p: Progress) => void): Promise<Segment[]> {
     const tr = engine === 'openai' ? new OpenAITranslator({ apiKey }) : new LocalTranslator();
-    const out = await tr.translate(segs, { from: language, to: target, signal, onProgress });
+    const out = await tr.translate(segs, { from: language === 'auto' && detectedLang ? detectedLang : language, to: target, signal, onProgress });
     return segs.map((s, i) => ({ ...s, translation: out[i] }));
   }
 
