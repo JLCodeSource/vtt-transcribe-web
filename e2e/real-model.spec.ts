@@ -6,8 +6,7 @@ import { join } from 'node:path';
 const model = process.env.REAL_MODEL ?? 'tiny';
 test.setTimeout(600000);
 
-test('real on-device Whisper', async ({ page }, info) => {
-  test.skip(!!process.env.SKIP_REAL_MODEL || info.project.name !== 'desktop', 'real model runs once, on desktop Chromium (set SKIP_REAL_MODEL=1 to skip: needs huggingface.co)');
+test('real on-device Whisper', async ({ page }) => {
   page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && console.log('console.error:', m.text()));
   await page.goto('/');
   await page.getByLabel('Model size').selectOption(model!);

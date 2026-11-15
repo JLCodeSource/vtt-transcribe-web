@@ -39,7 +39,7 @@ docker run --rm -e HOME=/tmp -e OWNER=$(id -u):$(id -g) --ipc=host -v "$PWD":/w 
   sh -c 'npx playwright install chrome && npx playwright test; chown -R $OWNER .'   # root: installs Chrome for the AAC-video test
 # The e2e suite runs on Chromium, Pixel-7 emulation, Firefox, WebKit and branded Chrome (AAC video), and includes a real tiny Whisper
 # model (downloaded from Hugging Face, WASM) transcribing e2e/fixtures/hello_conversation.mp3.
-# No network to huggingface.co? set SKIP_REAL_MODEL=1. WebGPU is the only thing CI cannot test.
+# No network to huggingface.co? run the other projects only: npx playwright test --project=desktop --project=mobile --project=firefox --project=webkit --project=chrome. WebGPU is the only thing CI cannot test.
 ```
 
 Everything is tested locally; GitHub Actions are intentionally disabled on this repo. Do not host publicly until ready. Note: the `/ort` runtime files include an 11 MB `.wasm`; a host with a 25 MB per-file limit is fine, but check any other limits.

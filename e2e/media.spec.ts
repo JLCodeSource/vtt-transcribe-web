@@ -55,10 +55,8 @@ test('OpenAI chunking: a big file is decoded in the browser and sent as several 
 // Chromium never decodes the video track, so H.264 video is fine as long as the AUDIO codec is available.
 const videos = ['video-vp8-opus.webm', 'video-theora-vorbis.ogv', 'video-h264-mp3.mp4', 'video-vp9-opus.mp4', 'video-h264-aac.mp4'];
 for (const name of videos) {
-  test(`on-device engine decodes ${name} (video container, audio track)`, async ({ page, browserName }, info) => {
-    // Phone/camera mp4 files carry AAC audio. Playwright's open-source Chromium has no AAC decoder
-    // (branded Chrome does); Firefox and WebKit do and are tested instead.
-    test.skip(name.includes('aac') && browserName === 'chromium' && info.project.name !== 'chrome', 'Playwright Chromium has no AAC decoder');
+  test(`on-device engine decodes ${name} (video container, audio track)`, async ({ page }) => {
+    // Phone/camera mp4 files carry AAC audio; those run only where an AAC decoder exists (see playwright.config.ts).
     // Stub the model: we only need to prove the container decodes to real audio samples.
     await page.addInitScript(() => {
       (globalThis as any).__VTT_PIPELINE_FACTORY__ = async () => async (samples: Float32Array) => ({

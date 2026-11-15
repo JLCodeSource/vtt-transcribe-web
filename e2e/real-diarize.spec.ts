@@ -5,15 +5,13 @@ import { join } from 'node:path';
 // Downloads the real speaker models (~100 MB) and runs them in Chromium (WASM) on e2e/fixtures/two-voices.wav:
 // a 6-turn conversation between two distinct synthetic voices (made by scripts/gen-two-voice-fixture.sh),
 // with exact reference turns in two-voices.rttm. REAL_DIARIZE=/other.wav (+ /other.rttm) overrides the clip.
-// SKIP_REAL_MODEL=1 skips (needs huggingface.co).
+// Runs in the 'real' Playwright project (needs huggingface.co); exclude it with --project=desktop etc.
 const wav = process.env.REAL_DIARIZE ?? join(process.cwd(), 'e2e/fixtures/two-voices.wav');
-test.skip(!!process.env.SKIP_REAL_MODEL, 'SKIP_REAL_MODEL set');
 test.setTimeout(900000);
 
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' };
 
-test('real speaker models agree with the reference speaker turns', async ({ page }, info) => {
-  test.skip(info.project.name !== 'desktop', 'runs once, on desktop Chromium');
+test('real speaker models agree with the reference speaker turns', async ({ page }) => {
   const truth = readFileSync(wav!.replace(/\.wav$/, '.rttm'), 'utf8')
     .trim().split('\n').map((l) => l.split(/\s+/))
     .map((f) => ({ start: Number(f[3]), end: Number(f[3]) + Number(f[4]), spk: f[7] }));
