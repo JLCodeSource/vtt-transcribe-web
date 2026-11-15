@@ -17,7 +17,7 @@ export default defineConfig({
     // Branded Chrome (has AAC/H.264): media spec only. Needs `npx playwright install chrome`.
     { name: 'chrome', testMatch: /media\.spec\.ts/, use: { ...devices['Desktop Chrome'], channel: 'chrome' } },
     // Real Whisper + real speaker models (downloads ~140 MB from huggingface.co), once, WASM in Chromium.
-    { name: 'real', testMatch: /real-model|real-diarize/, use: { ...devices['Desktop Chrome'] } },
+    { name: 'real', testMatch: /real-model|real-diarize|real-language/, use: { ...devices['Desktop Chrome'] } },
     // WebGPU on the host NVIDIA GPU. Only defined when scripts/e2e.sh detected a GPU and passed it into the container.
     ...(process.env.VTT_GPU
       ? [{
