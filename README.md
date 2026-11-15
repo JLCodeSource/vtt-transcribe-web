@@ -37,8 +37,9 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-sli
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npx svelte-check        # types
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp --ipc=host -v "$PWD":/w -w /w \
   mcr.microsoft.com/playwright:v1.49.1-jammy npx playwright test                                         # e2e (mocked OpenAI, stub model)
-# real model, opt-in (downloads from Hugging Face, WASM in headless Chromium):
-docker run ... -e REAL_MODEL=tiny ... npx playwright test real-model --project=desktop
+# The e2e suite runs on Chromium, Pixel-7 emulation, Firefox and WebKit, and includes a real tiny Whisper
+# model (downloaded from Hugging Face, WASM) transcribing e2e/fixtures/hello_conversation.mp3.
+# No network to huggingface.co? set SKIP_REAL_MODEL=1. WebGPU is the only thing CI cannot test.
 ```
 
 Everything is tested locally; GitHub Actions are intentionally disabled on this repo. Do not host publicly until ready. Note: the `/ort` runtime files include an 11 MB `.wasm`; a host with a 25 MB per-file limit is fine, but check any other limits.

@@ -14,6 +14,14 @@ export interface OpenAIOptions {
   model?: string;
   fetchImpl?: typeof fetch;
   decode?: (b: Blob) => Promise<Float32Array>;
+  /** Files above this are chunked. Defaults to MAX_DIRECT_BYTES. */
+  maxDirectBytes?: number;
+  chunkSeconds?: number;
+}
+
+/** Test seam: e2e lowers the limits so a tiny file exercises the real decode/chunk path. */
+function limitsOverride(): { maxDirectBytes?: number; chunkSeconds?: number } {
+  return (globalThis as { __VTT_OPENAI_LIMITS__?: { maxDirectBytes?: number; chunkSeconds?: number } }).__VTT_OPENAI_LIMITS__ ?? {};
 }
 
 interface VerboseJson {
@@ -30,7 +38,10 @@ export class OpenAIEngine implements Engine {
     const decode = this.cfg.decode ?? decodeToMono16k;
 
     // Small files go up untouched (best quality, no decoding). Big ones are decoded and chunked.
-    if (audio.size <= MAX_DIRECT_BYTES) {
+    const lim = limitsOverride();
+    const maxDirect = this.cfg.maxDirectBytes ?? lim.maxDirectBytes ?? MAX_DIRECT_BYTES;
+    const chunkSeconds = this.cfg.chunkSeconds ?? lim.chunkSeconds ?? CHUNK_SECONDS;
+    if (audio.size <= maxDirect) {
       options.onProgress?.({ phase: 'transcribe', fraction: 0, message: 'Uploading to OpenAI…' });
       const segs = await this.request(audio, 'audio', options);
       options.onProgress?.({ phase: 'transcribe', fraction: 1, message: 'Done' });
@@ -38,7 +49,7 @@ export class OpenAIEngine implements Engine {
     }
 
     options.onProgress?.({ phase: 'decode', fraction: null, message: 'Preparing audio in your browser…' });
-    const chunks = chunkPcm(await decode(audio), CHUNK_SECONDS);
+    const chunks = chunkPcm(await decode(audio), chunkSeconds);
     const out: Segment[] = [];
     for (let i = 0; i < chunks.length; i++) {
       if (options.signal?.aborted) throw new EngineError('Cancelled.', 'aborted');

@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { join } from 'node:path';
 
-// Opt-in spike: downloads a real Whisper model from Hugging Face and runs it in headless Chromium (WASM, no GPU).
-// REAL_MODEL=tiny npx playwright test real-model
-const model = process.env.REAL_MODEL;
-test.skip(!model, 'set REAL_MODEL=tiny|base|small to run');
+// Downloads a real Whisper model from Hugging Face and runs it in headless Chromium (WASM, no GPU).
+// Default model is tiny (≈40 MB); REAL_MODEL=base|small to try the others.
+const model = process.env.REAL_MODEL ?? 'tiny';
 test.setTimeout(600000);
 
-test('real on-device Whisper', async ({ page }) => {
+test('real on-device Whisper', async ({ page }, info) => {
+  test.skip(!!process.env.SKIP_REAL_MODEL || info.project.name !== 'desktop', 'real model runs once, on desktop Chromium (set SKIP_REAL_MODEL=1 to skip: needs huggingface.co)');
   page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && console.log('console.error:', m.text()));
   await page.goto('/');
   await page.getByLabel('Model size').selectOption(model!);
@@ -20,4 +20,5 @@ test('real on-device Whisper', async ({ page }) => {
   console.log(`MODEL=${model} total_ms=${Date.now() - t0}`);
   console.log('ALERT:', await err.allInnerTexts()); console.log('RESULT:', (await page.locator('ol li').allInnerTexts()).join(' | ').replace(/\n/g, ' '));
   await expect(err).toHaveCount(0);
+  await expect(page.locator('ol')).toContainText(/hello world/i);
 });
