@@ -52,10 +52,13 @@ test('OpenAI chunking: a big file is decoded in the browser and sent as several 
   await expect(page.locator('ol li time')).toHaveText(['00:01', '00:11', '00:21']);
 });
 
-for (const name of ['short-video.webm', 'short-video.mp4']) {
+// Chromium never decodes the video track, so H.264 video is fine as long as the AUDIO codec is available.
+const videos = ['video-vp8-opus.webm', 'video-theora-vorbis.ogv', 'video-h264-mp3.mp4', 'video-vp9-opus.mp4', 'video-h264-aac.mp4'];
+for (const name of videos) {
   test(`on-device engine decodes ${name} (video container, audio track)`, async ({ page, browserName }) => {
-    // Playwright's open-source Chromium is built without AAC/H.264; Chrome, Firefox and Safari decode mp4.
-    test.skip(name.endsWith('.mp4') && browserName === 'chromium', 'Playwright Chromium has no AAC/H.264 codecs');
+    // Phone/camera mp4 files carry AAC audio. Playwright's open-source Chromium has no AAC decoder
+    // (branded Chrome does); Firefox and WebKit do and are tested instead.
+    test.skip(name.includes('aac') && browserName === 'chromium', 'Playwright Chromium has no AAC decoder');
     // Stub the model: we only need to prove the container decodes to real audio samples.
     await page.addInitScript(() => {
       (globalThis as any).__VTT_PIPELINE_FACTORY__ = async () => async (samples: Float32Array) => ({
@@ -66,7 +69,8 @@ for (const name of ['short-video.webm', 'short-video.mp4']) {
     await page.goto('/');
     await page.getByTestId('file-input').setInputFiles(fx(name));
     await page.getByRole('button', { name: 'Transcribe' }).click();
-    // ~22.3 s of audio at 16 kHz => ~357k samples across 30 s windows
-    await expect(page.locator('ol li').first()).toContainText(/samples=3[0-9]{5}/);
+    // 6-22 s of audio at 16 kHz => 90k-360k samples in the first (<=30 s) window
+    const first = await page.locator('ol li').first().innerText();
+    expect(Number(/samples=(\d+)/.exec(first)?.[1])).toBeGreaterThan(90000);
   });
 }
