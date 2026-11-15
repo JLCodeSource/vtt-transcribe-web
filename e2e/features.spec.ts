@@ -109,12 +109,16 @@ test('diarization: review, merge, split, rename, then speakers appear in transcr
   expect(await txt(page)).toContain('Robert: Goodbye everyone.');
 });
 
-test('diarization and translation together', async ({ page }) => {
-  await setup(page);
+test('diarization and translation together: speakers first, translation only after review', async ({ page }) => {
+  const chat = await setup(page);
   await page.getByLabel('Translate the transcript into').selectOption('es');
   await page.getByLabel('Identify the speakers').check();
   await page.getByRole('button', { name: /Transcribe/ }).click();
+  await expect(page.getByRole('button', { name: 'Looks good' })).toBeVisible();
+  expect(chat).toHaveLength(0); // nothing translated while the human is still reviewing speakers
   await page.getByRole('button', { name: 'Looks good' }).click();
+  await expect(page.getByRole('button', { name: 'SRT', exact: true })).toBeVisible();
+  expect(chat).toHaveLength(1);
   expect(await txt(page)).toContain('Speaker 2: Adiós a todos.');
 });
 

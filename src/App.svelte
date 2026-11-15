@@ -53,8 +53,7 @@
     progress = { phase: 'decode', fraction: null, message: 'Starting…' };
     try {
       const eng = engine === 'openai' ? new OpenAIEngine({ apiKey }) : new LocalEngine({ model });
-      let segs = await eng.transcribe(file, { language, signal, onProgress });
-      if (target) segs = await translateAll(segs, signal, onProgress);
+      const segs = await eng.transcribe(file, { language, signal, onProgress });
       raw = segs;
       if (diarize && segs.length) {
         progress = { phase: 'decode', fraction: null, message: 'Preparing audio for speaker detection…' };
@@ -67,6 +66,9 @@
         reviewing = turns.length > 0;
         if (!turns.length) turns = null;
       }
+      // Order: transcribe -> diarize (+ human speaker review, in the original language) -> translate.
+      // Translation is deferred until the speakers are confirmed, see finishAfterReview().
+      if (!reviewing && target) raw = await translateAll(segs, signal, onProgress);
     } catch (e) {
       if (!(e instanceof EngineError && e.kind === 'aborted')) {
         error = e instanceof Error ? e.message : 'Something went wrong.';
@@ -84,14 +86,33 @@
     return segs.map((s, i) => ({ ...s, translation: out[i] }));
   }
 
+  /** Translation runs only after the speakers have been reviewed (or skipped). */
+  async function finishAfterReview() {
+    reviewing = false;
+    if (!target || !raw || raw.some((s) => s.translation !== undefined)) return;
+    error = '';
+    abort = new AbortController();
+    const signal = abort.signal;
+    progress = { phase: 'transcribe', fraction: null, message: 'Translating…' };
+    try {
+      raw = await translateAll(raw, signal, (p) => (progress = p));
+    } catch (e) {
+      if (!(e instanceof EngineError && e.kind === 'aborted')) {
+        error = e instanceof Error ? e.message : 'Translation failed.';
+      }
+    } finally {
+      progress = null;
+      abort = null;
+    }
+  }
   function confirmSpeakers(t: Turn[], n: SpeakerNames) {
     turns = t;
     names = n;
-    reviewing = false;
+    void finishAfterReview();
   }
   function skipSpeakers() {
     turns = null;
-    reviewing = false;
+    void finishAfterReview();
   }
   function reset() {
     raw = null;
@@ -118,7 +139,9 @@
     <div class="error" role="alert">{error}</div>
   {/if}
 
-  {#if raw && reviewing && turns && file}
+  {#if progress}
+    <ProgressView {progress} oncancel={() => abort?.abort()} />
+  {:else if raw && reviewing && turns && file}
     <SpeakerReview {turns} {names} segments={raw} {file} onconfirm={confirmSpeakers} onskip={skipSpeakers} />
   {:else if segments}
     <TranscriptViewer
@@ -127,8 +150,6 @@
       onreset={reset}
       onspeakers={turns ? () => (reviewing = true) : undefined}
     />
-  {:else if progress}
-    <ProgressView {progress} oncancel={() => abort?.abort()} />
   {:else}
     <EnginePicker bind:engine bind:apiKey bind:remember bind:model bind:language bind:target bind:diarize bind:speakerCount />
     <Dropzone {file} onfile={(f) => ((file = f), (error = ''))} />
