@@ -1,5 +1,8 @@
 # Publishing vtt-transcribe-web on GitHub Pages
 
+**Live:** https://jlcodesource.github.io/vtt-transcribe-web/ — deployed by `.github/workflows/pages.yml` on every push to `main`
+(Pages source: GitHub Actions; Actions restricted to GitHub-owned actions). The options below record how it was set up.
+
 The site is fully static (`dist/`). It must be served from a sub-path (`https://<user>.github.io/vtt-transcribe-web/`);
 the build already uses relative URLs and the `subpath` e2e project proves that shape works (including the real model).
 
