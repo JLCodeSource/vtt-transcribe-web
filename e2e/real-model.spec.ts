@@ -20,4 +20,5 @@ test('real on-device Whisper', async ({ page }) => {
   console.log('ALERT:', await err.allInnerTexts()); console.log('RESULT:', (await page.locator('ol li').allInnerTexts()).join(' | ').replace(/\n/g, ' '));
   await expect(err).toHaveCount(0);
   await expect(page.locator('ol')).toContainText(/hello world/i);
+  await expect(page.getByTestId('ran-on')).toContainText('detected language: English');
 });

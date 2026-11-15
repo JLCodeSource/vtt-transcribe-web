@@ -102,7 +102,7 @@
     {#each LANGS as [code, name] (code)}<option value={code}>{name}</option>{/each}
   </select>
   {#if engine === 'local' && language === 'auto'}
-    <p class="hint">On-device mode cannot auto-detect the language yet: it assumes English. Pick the spoken language for best results.</p>
+    <p class="hint">The language is detected from the first 30 seconds of audio. Pick it yourself if the recording starts with silence or music.</p>
   {/if}
 
   <label for="target" class="lang">Translate the transcript into</label>

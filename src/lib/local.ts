@@ -22,7 +22,10 @@ export const LOCAL_MODELS: LocalModel[] = [
 export const WINDOW_SECONDS = 30;
 
 type AsrOutput = { text: string; chunks?: Array<{ text: string; timestamp: [number, number | null] }> };
-export type AsrPipeline = (audio: Float32Array, opts: Record<string, unknown>) => Promise<AsrOutput | AsrOutput[]>;
+export type AsrPipeline = ((audio: Float32Array, opts: Record<string, unknown>) => Promise<AsrOutput | AsrOutput[]>) & {
+  /** Whisper language ID: one decoder step over the first 30 s, argmax over the language tokens. */
+  detectLanguage?: (audio30s: Float32Array) => Promise<string>;
+};
 
 export interface PipelineRequest {
   hfId: string;
@@ -65,8 +68,38 @@ export const defaultFactory: PipelineFactory = async ({ hfId, device, onFile }) 
       else if (e.status === 'initiate' && e.file) onFile(e.file, 0);
     },
   });
-  return asr as unknown as AsrPipeline;
+  const pipe = asr as unknown as AsrPipeline & WhisperInternals;
+  pipe.detectLanguage = (audio) => detectWhisperLanguage(pipe, audio);
+  return pipe;
 };
+
+interface WhisperInternals {
+  model: {
+    generation_config: { decoder_start_token_id: number; lang_to_id?: Record<string, number> };
+    (inputs: Record<string, unknown>): Promise<{ logits: { dims: number[]; data: ArrayLike<number>; getData?: () => Promise<ArrayLike<number>> } }>;
+  };
+  processor: (audio: Float32Array) => Promise<{ input_features: unknown }>;
+}
+
+/** Whisper language detection: transformers.js has none (it silently assumes English), so do it ourselves. */
+async function detectWhisperLanguage(asr: WhisperInternals, audio: Float32Array): Promise<string> {
+  const { Tensor } = await import('@huggingface/transformers');
+  const cfg = asr.model.generation_config;
+  if (!cfg.lang_to_id) return 'en'; // English-only model
+  const { input_features } = await asr.processor(audio.subarray(0, 30 * 16000));
+  const start = new Tensor('int64', BigInt64Array.from([BigInt(cfg.decoder_start_token_id)]), [1, 1]);
+  const out = await asr.model({ input_features, decoder_input_ids: start });
+  const logits = (await out.logits.getData?.()) ?? out.logits.data;
+  let best = 'en';
+  let bestScore = -Infinity;
+  for (const [token, id] of Object.entries(cfg.lang_to_id)) {
+    if (logits[id] > bestScore) {
+      bestScore = logits[id];
+      best = token.replace(/^<\||\|>$/g, '');
+    }
+  }
+  return best;
+}
 
 export interface LocalOptions {
   model?: string; // LOCAL_MODELS id
@@ -81,6 +114,8 @@ export class LocalEngine implements Engine {
   private loadedKey = '';
   /** Which backend actually ran (for UI honesty). */
   device: 'webgpu' | 'wasm' = 'wasm';
+  /** Language Whisper detected when the user chose "detect automatically" (undefined otherwise). */
+  detectedLanguage?: string;
 
   constructor(private readonly cfg: LocalOptions = {}) {}
 
@@ -89,6 +124,17 @@ export class LocalEngine implements Engine {
     options.onProgress?.({ phase: 'decode', fraction: null, message: 'Decoding audio in your browser…' });
     const pcm = await (this.cfg.decode ?? decodeToMono16k)(audio);
     const asr = await this.load(model, options);
+
+    let lang = options.language && options.language !== 'auto' ? options.language : undefined;
+    this.detectedLanguage = undefined;
+    if (!lang && asr.detectLanguage) {
+      options.onProgress?.({ phase: 'transcribe', fraction: 0, message: 'Detecting the spoken language…' });
+      try {
+        lang = this.detectedLanguage = await asr.detectLanguage(pcm);
+      } catch {
+        lang = undefined; // fall back to Whisper's own default (English)
+      }
+    }
 
     const windows = chunkPcm(pcm, WINDOW_SECONDS);
     const out: Segment[] = [];
@@ -99,7 +145,6 @@ export class LocalEngine implements Engine {
         fraction: i / windows.length,
         message: `Transcribing ${i + 1} of ${windows.length}… (${this.device === 'webgpu' ? 'GPU' : 'CPU / WebAssembly'})`,
       });
-      const lang = options.language && options.language !== 'auto' ? options.language : undefined;
       const res = await asr(windows[i].samples, {
         return_timestamps: true,
         task: 'transcribe',

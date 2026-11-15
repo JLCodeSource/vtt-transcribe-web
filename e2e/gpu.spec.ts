@@ -13,6 +13,6 @@ test('on-device Whisper runs on WebGPU', async ({ page }) => {
   await page.getByLabel('Model size').selectOption('tiny');
   await page.getByTestId('file-input').setInputFiles(join(process.cwd(), 'e2e/fixtures/hello_conversation.mp3'));
   await page.getByRole('button', { name: 'Transcribe' }).click();
-  await expect(page.getByTestId('ran-on')).toHaveText(/GPU \(WebGPU\)/, { timeout: 280000 });
+  await expect(page.getByTestId('ran-on')).toHaveText(/GPU \(WebGPU\); detected language: English/, { timeout: 280000 });
   await expect(page.locator('ol')).toContainText(/hello world/i);
 });

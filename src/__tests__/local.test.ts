@@ -79,4 +79,41 @@ describe('LocalEngine', () => {
     ac.abort();
     await expect(new LocalEngine({ factory, decode: pcm, device: 'wasm' }).transcribe(new Blob(['x']), { signal: ac.signal })).rejects.toMatchObject({ kind: 'aborted' });
   });
+
+  describe('language detection', () => {
+    const mk = (detect: (a: Float32Array) => Promise<string>) => {
+      const asr = Object.assign(vi.fn().mockResolvedValue({ text: 'x', chunks: [{ text: 'bonjour', timestamp: [0, 1] }] }), {
+        detectLanguage: vi.fn(detect),
+      });
+      return { asr, factory: vi.fn().mockResolvedValue(asr) as unknown as PipelineFactory };
+    };
+
+    it('detects the language when set to auto and uses it for every window', async () => {
+      const { asr, factory } = mk(async () => 'fr');
+      const e = new LocalEngine({ factory, decode: pcm, device: 'wasm' });
+      await e.transcribe(new Blob(['x']), { language: 'auto' });
+      expect(asr.detectLanguage).toHaveBeenCalledTimes(1);
+      expect(e.detectedLanguage).toBe('fr');
+      expect(asr.mock.calls.every((c) => c[1].language === 'fr')).toBe(true);
+    });
+
+    it('does not detect when the user picked a language', async () => {
+      const { asr, factory } = mk(async () => 'fr');
+      const e = new LocalEngine({ factory, decode: pcm, device: 'wasm' });
+      await e.transcribe(new Blob(['x']), { language: 'de' });
+      expect(asr.detectLanguage).not.toHaveBeenCalled();
+      expect(e.detectedLanguage).toBeUndefined();
+      expect(asr.mock.calls[0][1].language).toBe('de');
+    });
+
+    it('falls back to the model default if detection throws', async () => {
+      const { asr, factory } = mk(async () => {
+        throw new Error('boom');
+      });
+      const e = new LocalEngine({ factory, decode: pcm, device: 'wasm' });
+      await e.transcribe(new Blob(['x']));
+      expect(e.detectedLanguage).toBeUndefined();
+      expect(asr.mock.calls[0][1]).not.toHaveProperty('language');
+    });
+  });
 });

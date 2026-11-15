@@ -6,6 +6,7 @@
   import SpeakerReview from './components/SpeakerReview.svelte';
   import { OpenAIEngine } from './lib/openai';
   import { LocalEngine } from './lib/local';
+  import { languageName } from './lib/languages';
   import { OpenAITranslator, LocalTranslator } from './lib/translate';
   import { Diarizer } from './lib/diarize';
   import { decodeToMono16k } from './lib/audio';
@@ -55,7 +56,10 @@
     try {
       const eng = engine === 'openai' ? new OpenAIEngine({ apiKey }) : new LocalEngine({ model });
       const segs = await eng.transcribe(file, { language, signal, onProgress });
-      ranOn = eng instanceof LocalEngine ? (eng.device === 'webgpu' ? 'on this device, GPU (WebGPU)' : 'on this device, CPU (WebAssembly)') : 'by OpenAI';
+      ranOn = eng instanceof LocalEngine
+        ? (eng.device === 'webgpu' ? 'on this device, GPU (WebGPU)' : 'on this device, CPU (WebAssembly)') +
+          (eng.detectedLanguage ? `; detected language: ${languageName(eng.detectedLanguage)}` : '')
+        : 'by OpenAI';
       raw = segs;
       if (diarize && segs.length) {
         progress = { phase: 'decode', fraction: null, message: 'Preparing audio for speaker detection…' };
