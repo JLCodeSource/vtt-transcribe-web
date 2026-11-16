@@ -43,7 +43,7 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-sli
 # the GPU automatically; without one the gpu project simply isn't part of the run.
 ```
 
-Everything is tested locally; GitHub Actions are intentionally disabled on this repo. Do not host publicly until ready. Note: the `/ort` runtime files include an 11 MB `.wasm`; a host with a 25 MB per-file limit is fine, but check any other limits.
+Everything is tested locally in containers. The site is deployed to GitHub Pages by `.github/workflows/pages.yml` on every push to `main`. Note: the `/ort` runtime files include `.wasm` files of about 27-28 MB each; that is under GitHub's 100 MB per-file limit, but a host with a 25 MB per-file limit would not work.
 
 Layout: `src/lib/{openai,local,audio,format,settings,types}.ts` (engines and helpers), `src/components/*`, `e2e/*`.
 
