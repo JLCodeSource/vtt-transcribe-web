@@ -62,7 +62,7 @@ Layout: `src/lib/{openai,local,audio,format,settings,types}.ts` (engines and hel
 ## Translation and speakers
 
 - **Translate**: pick a target language. OpenAI mode uses a chat model (`gpt-4o-mini`) in numbered batches; on-device mode uses small Opus-MT models (about 75 MB per pair, non-English pairs pivot via English) and is rougher. Exports and the viewer can show the original or the translation.
-- **Speakers**: tick "Identify the speakers". Detection always runs on your device (pyannote-segmentation-3.0 + a WavLM x-vector, about 100 MB, cached). You then review each speaker: play samples, rename, **merge** voices that are one person, or **split** one that is two. Names are written into the transcript and exports (`Ada: text`).
+- **Speakers**: tick "Identify the speakers". Detection always runs on your device (pyannote-segmentation-3.0 + a WavLM x-vector, about 100 MB, cached). You then review each speaker (by default after transcription, detection and translation have all finished, so a batch runs to the end before it needs you; Settings → "Review the speakers before translating" asks first instead): play samples, rename, **merge** voices that are one person, or **split** one that is two. Names are written into the transcript and exports (`Ada: text`).
 - **Accuracy**: on 3-minute two/three-speaker test conversations the automatic count was correct on 2 of 4, otherwise too high (over-splitting is deliberate: merging is one click), with 79-100% of speaking time attributed correctly. Choosing the speaker count up front uses it exactly. Overlapping speech is not separated.
 - Opt-in real-model check: `REAL_DIARIZE=/path/to/audio.wav` (with a matching `.rttm`) `npx playwright test real-diarize --project=desktop`.
 

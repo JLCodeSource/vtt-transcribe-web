@@ -11,8 +11,8 @@
   import type { Retention } from './lib/retention';
   import type { SpeakerNames, Turn } from './lib/speakers';
   import {
-    applyTheme, clearLocalSettings, forgetKey, loadDefaultRetention, loadKeepAudio, loadNotify, loadSavedKey,
-    loadTheme, saveDefaultRetention, saveKeepAudio, saveKey, saveNotify, type Theme,
+    applyTheme, clearLocalSettings, forgetKey, loadDefaultRetention, loadKeepAudio, loadNotify, loadReviewFirst, loadSavedKey,
+    loadTheme, saveDefaultRetention, saveKeepAudio, saveKey, saveNotify, saveReviewFirst, type Theme,
   } from './lib/settings';
   import { BASE_TITLE, notifyIfHidden, requestNotifications, titleFor } from './lib/notify';
 
@@ -29,6 +29,7 @@
   let speakerCount = $state('auto');
   let defaultRetention = $state<Retention>(loadDefaultRetention());
   let keepAudio = $state(loadKeepAudio());
+  let reviewFirst = $state(loadReviewFirst());
   let notify = $state(loadNotify());
   let notifyDenied = $state(false);
   let deleted = $state(false);
@@ -94,7 +95,7 @@
     if (!canStart) return;
     if (engine === 'openai') (remember ? saveKey(apiKey.trim()) : forgetKey());
     void navigator.storage?.persist?.().catch(() => {}); // ask the browser not to evict results under pressure
-    const options: JobOptions = { engine, apiKey: apiKey.trim(), model, language, target, diarize, speakerCount };
+    const options: JobOptions = { engine, apiKey: apiKey.trim(), model, language, target, diarize, speakerCount, reviewFirst };
     const items = service.submit(files, options);
     autoOpen = items.length === 1 ? items[0].id : '';
     files = [];
@@ -147,6 +148,7 @@
     apiKey = '';
     remember = false;
     keepAudio = false;
+    reviewFirst = false;
     notify = false;
     defaultRetention = loadDefaultRetention();
     theme = 'system';
@@ -209,6 +211,8 @@
       retention={defaultRetention}
       rememberKey={remember}
       {keepAudio}
+      {reviewFirst}
+      onreviewfirst={(v) => ((reviewFirst = v), saveReviewFirst(v))}
       {notify}
       {notifyDenied}
       {deleted}

@@ -134,7 +134,7 @@ export class JobService {
       turns: r.turns,
       names: {},
       awaitingReview: !!r.turns,
-      translate: r.turns && o.target ? { engine: o.engine, target: o.target, from: o.language === 'auto' && r.detectedLang ? r.detectedLang : o.language } : null,
+      translate: r.turns && o.target && o.reviewFirst ? { engine: o.engine, target: o.target, from: o.language === 'auto' && r.detectedLang ? r.detectedLang : o.language } : null,
       ranOn: r.ranOn,
       warning: r.warning,
       retention,
