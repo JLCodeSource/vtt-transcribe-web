@@ -1,17 +1,35 @@
 # VTT Transcribe Web
 
-A static, serverless web app that transcribes audio/video **in your browser**. There is no backend.
+**Live site: https://jlcodesource.github.io/vtt-transcribe-web/**
 
-**On-device is the default** and needs no key. OpenAI is an explicit opt-in (tick "Use OpenAI instead" and paste your own key); nothing is sent to OpenAI unless you do.
+Turn audio and video into text, entirely in your browser. There is no backend, no account and nothing to install.
 
-Two engines behind one interface (`transcribe(audio, options) -> segments`):
+- **Private by default.** Speech recognition (Whisper) runs on your own device. Your files are not uploaded anywhere. If you prefer, you can opt in to OpenAI with your own API key.
+- **Several files at once.** Add as many as you like; they run one at a time and the results are kept in your browser for a few days.
+- **Optional extras.** Translation, and "who spoke when" speaker labels you can review, rename, merge and split.
+- **Export** as SRT, VTT, TXT or JSON. Light, dark and auto theme; works on phones.
 
-| Engine | How | Key needed | Where the audio goes |
+## How to use it
+
+1. Open the live site and drop in one or more audio or video files (mp3, wav, m4a, ogg, webm, mp4, mov).
+2. Pick how to transcribe: **On this device** (default, no key, the first run downloads a model) or **OpenAI** (faster and more accurate, needs your key, uploads the audio to OpenAI).
+3. Optionally pick the spoken language, a translation language and "Identify the speakers", then press **Transcribe**.
+4. Watch progress in **Jobs**. When a result is ready, open it to read, search, review speakers and download it.
+5. **Settings** controls how long results are kept, the remembered key, notifications, and "Delete all my data".
+
+### The two engines
+
+| Engine | How it works | Key | Where your audio goes |
 |---|---|---|---|
-| **OpenAI Whisper (BYOK)** | Browser `POST`s straight to `https://api.openai.com/v1/audio/transcriptions` (`whisper-1`, `verbose_json`, segment timestamps). Files over 24 MB are decoded, resampled to 16 kHz mono and sent in 10-minute WAV chunks (OpenAI's limit is 25 MB). | Your own OpenAI key | Browser → OpenAI only |
-| **On this device** | [transformers.js](https://github.com/huggingface/transformers.js) runs Whisper (tiny/base/small, ONNX) with WebGPU if an adapter exists, else WebAssembly. Lazy-loaded; decodes audio with the Web Audio API. | None | Nowhere. Only the model weights are downloaded (Hugging Face), once, then cached by the browser. |
+| **On this device** (default) | [transformers.js](https://github.com/huggingface/transformers.js) runs Whisper (tiny, base or small) with WebGPU if available, otherwise WebAssembly. | None | Nowhere. Only the model files are downloaded from Hugging Face, once, then cached by your browser. |
+| **OpenAI (bring your own key)** | The browser sends the audio straight to `api.openai.com` (`whisper-1`). Files over 24 MB are split into 10-minute chunks (OpenAI's limit is 25 MB). | Your own OpenAI key | Your browser to OpenAI only. |
 
-Export: SRT, VTT, TXT, JSON. Light/dark/auto theme, mobile-friendly.
+## Translation and speakers
+
+- **Translate**: pick a target language. OpenAI mode uses a chat model (`gpt-4o-mini`) in numbered batches; on-device mode uses small Opus-MT models (about 75 MB per pair, non-English pairs pivot via English) and is rougher. Exports and the viewer can show the original or the translation.
+- **Speakers**: tick "Identify the speakers". Detection always runs on your device (pyannote-segmentation-3.0 + a WavLM x-vector, about 100 MB, cached). You then review each speaker (by default after transcription, detection and translation have all finished, so a batch runs to the end before it needs you; Settings → "Review the speakers before translating" asks first instead): play samples, rename, **merge** voices that are one person, or **split** one that is two. Names are written into the transcript and exports (`Ada: text`).
+- **Accuracy**: on 3-minute two/three-speaker test conversations the automatic count was correct on 2 of 4, otherwise too high (over-splitting is deliberate: merging is one click), with 79-100% of speaking time attributed correctly. Choosing the speaker count up front uses it exactly. Overlapping speech is not separated.
+- Opt-in real-model check: `REAL_DIARIZE=/path/to/audio.wav` (with a matching `.rttm`) `npx playwright test real-diarize --project=desktop`.
 
 ## Privacy claims and how to verify them
 
@@ -26,7 +44,7 @@ Export: SRT, VTT, TXT, JSON. Light/dark/auto theme, mobile-friendly.
 
 Verify: open DevTools → Network while transcribing (only your origin, `api.openai.com`, and in on-device mode `huggingface.co`/`*.hf.co`). `index.html` also ships a strict Content-Security-Policy `connect-src` allow-list, so the browser itself blocks any other destination; that policy is how we caught transformers.js trying to fetch code from jsdelivr, which is why ORT is self-hosted. The e2e tests assert the host set.
 
-## Queue, Jobs and what is not here
+## Queue, Jobs and what is not included
 
 Pick several files and they run **one at a time, first in first out** (the models are heavy in a browser tab; nothing runs concurrently). The Jobs view shows each item's step (download model, transcribe, identify speakers, translate), the percent through the audio where the engine reports one, the queue position of waiting items, and Cancel for waiting or running items. Finished results appear under "Saved in this browser" where you can re-open, review speakers, download or delete them. The tab title shows progress, and an optional notification tells you when a job finishes or fails while the tab is in the background.
 
@@ -36,12 +54,14 @@ Out of scope for a static app with no server: **email notifications, accounts an
 
 ## Known limits
 
-* Browser-side decoding uses `decodeAudioData`: whole file in memory, and only formats/codecs your browser supports (mp4/mov need a decodable audio track). A very long recording (hours) may exhaust memory. ffmpeg.wasm is not included.
-* On-device mode cannot auto-detect language (assumes English unless chosen); quality is below OpenAI; segments come from fixed 30 s windows so a word on a boundary can be split.
+* Browser-side decoding uses `decodeAudioData`: whole file in memory, and only formats/codecs your browser supports (mp4/mov need a decodable audio track). A very long recording (hours) may exhaust memory. ffmpeg.wasm is not included (see below).
+* Why no ffmpeg.wasm: the browser already decodes mp3, wav, m4a, ogg, webm and mp4 audio, so ffmpeg would only add rarer formats (mkv, avi, wma) at the cost of a ~30 MB download, a single-threaded (slow) build on GitHub Pages, which cannot send the headers multithreading needs, and licensing to check (the stock ffmpeg.wasm core is GPL-licensed, this project is BSD-3). It could be added later as an optional fallback that is downloaded only when a file fails to decode.
+* On-device mode detects the language from the first 30 seconds (pick it yourself if the recording starts with silence or music); quality is below OpenAI; segments come from fixed 30 s windows, so a word on a boundary can be split.
+* Long recordings and on-device memory: each processing stage frees its model before the next loads, but a very large file or the Small model on a low-memory device can still run out of memory. Use a smaller model or OpenAI mode.
 * OpenAI returns no CORS header on 401 responses, so a wrong key looks like a network error to the browser; the UI says so.
 * `whisper-1` is used because it is the OpenAI model that returns segment timestamps.
 
-## Develop and test (no node on the host needed)
+## For developers: build and test (no node needed on the host)
 
 ```bash
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npm install
@@ -58,13 +78,6 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-sli
 Everything is tested locally in containers. The site is deployed to GitHub Pages by `.github/workflows/pages.yml` on every push to `main`. Note: the `/ort` runtime files include `.wasm` files of about 27-28 MB each; that is under GitHub's 100 MB per-file limit, but a host with a 25 MB per-file limit would not work.
 
 Layout: `src/lib/{openai,local,audio,format,settings,types}.ts` (engines and helpers), `src/lib/{queue,store,retention,service,pipeline,notify}.ts` (job queue, IndexedDB store, retention rules, glue), `src/components/*`, `e2e/*`.
-
-## Translation and speakers
-
-- **Translate**: pick a target language. OpenAI mode uses a chat model (`gpt-4o-mini`) in numbered batches; on-device mode uses small Opus-MT models (about 75 MB per pair, non-English pairs pivot via English) and is rougher. Exports and the viewer can show the original or the translation.
-- **Speakers**: tick "Identify the speakers". Detection always runs on your device (pyannote-segmentation-3.0 + a WavLM x-vector, about 100 MB, cached). You then review each speaker (by default after transcription, detection and translation have all finished, so a batch runs to the end before it needs you; Settings → "Review the speakers before translating" asks first instead): play samples, rename, **merge** voices that are one person, or **split** one that is two. Names are written into the transcript and exports (`Ada: text`).
-- **Accuracy**: on 3-minute two/three-speaker test conversations the automatic count was correct on 2 of 4, otherwise too high (over-splitting is deliberate: merging is one click), with 79-100% of speaking time attributed correctly. Choosing the speaker count up front uses it exactly. Overlapping speech is not separated.
-- Opt-in real-model check: `REAL_DIARIZE=/path/to/audio.wav` (with a matching `.rttm`) `npx playwright test real-diarize --project=desktop`.
 
 ## Test fixtures and keys
 No OpenAI key is needed to build, test or regenerate anything. OpenAI tests run against a mocked endpoint with a fake key, and the
