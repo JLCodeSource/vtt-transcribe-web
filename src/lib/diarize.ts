@@ -28,6 +28,8 @@ export interface DiarizeModels {
   speechSpans(samples: Float32Array): Promise<RawSpan[]>;
   /** Voice embedding for this audio. */
   embed(samples: Float32Array): Promise<Float32Array>;
+  /** release the models' memory */
+  dispose?(): Promise<void> | void;
 }
 
 export interface ModelRequest {
@@ -63,6 +65,9 @@ export const defaultModelsFactory: ModelsFactory = async ({ onFile }) => {
       const inputs = await embProc(samples);
       const { embeddings } = await embModel(inputs);
       return Float32Array.from(embeddings.data as ArrayLike<number>);
+    },
+    async dispose() {
+      await Promise.all([segModel, embModel].map((m) => (m as unknown as { dispose(): Promise<void> }).dispose()));
     },
   };
 };
@@ -126,6 +131,17 @@ export class Diarizer {
     const turns: Turn[] = stretches.map((s, i) => ({ start: s.start, end: s.end, embedding: embs[i], speaker: labels[i] }));
     onProgress?.({ phase: 'transcribe', fraction: 1, message: 'Done' });
     return turns;
+  }
+
+  /** Free the speaker models' memory. */
+  async dispose(): Promise<void> {
+    const m = this.models;
+    this.models = undefined;
+    try {
+      await (await m)?.dispose?.();
+    } catch {
+      /* ignore */
+    }
   }
 
   private load(onProgress?: (p: Progress) => void): Promise<DiarizeModels> {

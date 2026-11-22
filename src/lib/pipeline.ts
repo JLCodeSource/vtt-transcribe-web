@@ -36,7 +36,12 @@ export async function translateSegments(
   segs: Segment[], o: JobOptions, from: string, signal: AbortSignal, onProgress: (p: Progress) => void
 ): Promise<Segment[]> {
   const tr = o.engine === 'openai' ? new OpenAITranslator({ apiKey: o.apiKey }) : new LocalTranslator();
-  const out = await tr.translate(segs, { from, to: o.target, signal, onProgress });
+  let out: string[];
+  try {
+    out = await tr.translate(segs, { from, to: o.target, signal, onProgress });
+  } finally {
+    if (tr instanceof LocalTranslator) await tr.dispose();
+  }
   return segs.map((s, i) => ({ ...s, translation: out[i] }));
 }
 
@@ -48,9 +53,15 @@ export async function runTask(task: Task, ctx: RunContext): Promise<Outcome> {
     setStep('Translating');
     return { kind: 'translate', segments: await translateSegments(task.segments, o, task.from, signal, onProgress) };
   }
+  // Each stage frees its model before the next one loads, so a long queue stays within the browser's memory.
   setStep('Transcribing');
   const eng = o.engine === 'openai' ? new OpenAIEngine({ apiKey: o.apiKey }) : new LocalEngine({ model: o.model });
-  const segments = await eng.transcribe(task.file, { language: o.language, signal, onProgress });
+  let segments: Segment[];
+  try {
+    segments = await eng.transcribe(task.file, { language: o.language, signal, onProgress });
+  } finally {
+    if (eng instanceof LocalEngine) await eng.dispose();
+  }
   const ranOn = eng instanceof LocalEngine
     ? (eng.device === 'webgpu' ? 'on this device, GPU (WebGPU)' : 'on this device, CPU (WebAssembly)') +
       (eng.detectedLanguage ? `; detected language: ${languageName(eng.detectedLanguage)}` : '')
@@ -63,7 +74,12 @@ export async function runTask(task: Task, ctx: RunContext): Promise<Outcome> {
       setStep('Identifying speakers');
       onProgress({ phase: 'decode', fraction: null, message: 'Preparing audio for speaker detection…' });
       const pcm = await decodeToMono16k(task.file);
-      const t = await diarizer.run(pcm, { speakers: o.speakerCount === 'auto' ? undefined : Number(o.speakerCount), signal, onProgress });
+      let t: Turn[];
+      try {
+        t = await diarizer.run(pcm, { speakers: o.speakerCount === 'auto' ? undefined : Number(o.speakerCount), signal, onProgress });
+      } finally {
+        await diarizer.dispose();
+      }
       turns = t.length ? t : null;
     }
     // Default: translate now and leave the speaker review for the end. With reviewFirst, translation is deferred

@@ -102,7 +102,7 @@ export class OpenAITranslator implements Translator {
 // ---- on-device ---------------------------------------------------------------------------
 
 /** Translate an array of strings with one Opus-MT pair model (e.g. 'en-fr'). */
-export type PairTranslate = (texts: string[]) => Promise<string[]>;
+export type PairTranslate = ((texts: string[]) => Promise<string[]>) & { dispose?: () => Promise<void> | void };
 export interface PairRequest {
   pair: string; // 'en-fr'
   onFile: (file: string, fraction: number | null) => void;
@@ -119,12 +119,14 @@ export const defaultPairFactory: PairFactory = async ({ pair, onFile }) => {
       if (e.status === 'progress' && e.file) onFile(e.file, (e.progress ?? 0) / 100);
     },
   } as never);
-  return async (texts) => {
+  const run: PairTranslate = async (texts) => {
     const res = (await (t as unknown as (x: string[], o: object) => Promise<Array<{ translation_text: string }>>)(texts, {
       max_new_tokens: 256,
     })) as Array<{ translation_text: string }>;
     return res.map((r) => r.translation_text);
   };
+  run.dispose = () => (t as unknown as { dispose(): Promise<void> }).dispose();
+  return run;
 };
 
 /**
@@ -156,6 +158,19 @@ export class LocalTranslator implements Translator {
     }
     o.onProgress?.({ phase: 'transcribe', fraction: 1, message: 'Done' });
     return texts;
+  }
+
+  /** Free the translation models' memory. */
+  async dispose(): Promise<void> {
+    const all = [...this.cache.values()];
+    this.cache.clear();
+    for (const p of all) {
+      try {
+        await (await p)?.dispose?.();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   private pair(pair: string, o: TranslateOptions): Promise<PairTranslate> {

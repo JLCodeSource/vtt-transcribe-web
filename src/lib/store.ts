@@ -37,8 +37,8 @@ const AUDIO = 'audio';
 function fail(e: unknown): StoreError {
   if (e instanceof StoreError) return e;
   const name = (e as { name?: string })?.name;
-  if (name === 'QuotaExceededError') return new StoreError('This browser has no room left to save results. Delete old results or free some space.', 'quota');
-  return new StoreError(`Could not use this browser's storage (${(e as Error)?.message ?? name ?? 'unknown error'}).`, 'failed');
+  if (name === 'QuotaExceededError') return new StoreError('This browser has no room left to save results. Delete old results or free some space. If it keeps happening although the browser reports free space, clear the site data for this page (DevTools → Application → Storage) and check that no custom storage quota is being simulated.', 'quota');
+  return new StoreError(`Could not use this browser's storage (${name ?? 'Error'}: ${(e as Error)?.message ?? 'unknown error'}).`, 'failed');
 }
 
 export class JobStore {

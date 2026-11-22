@@ -92,4 +92,18 @@ describe('JobQueue', () => {
     h.queue.remove(a.id);
     expect(h.queue.items).toHaveLength(0);
   });
+
+  it('retry puts a failed item back at the end of the line and runs it again', async () => {
+    let fail = true;
+    const ran: string[] = [];
+    const q = new JobQueue<string, string>(async (item) => { ran.push(item.input); if (item.input === 'a' && fail) throw new Error('boom'); return 'ok'; });
+    const a = q.add('a', 'a');
+    await new Promise((r) => setTimeout(r, 10));
+    expect(q.items[0].status).toBe('failed');
+    fail = false;
+    q.retry(a.id);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(ran).toEqual(['a', 'a']);
+    expect(q.items[0]).toMatchObject({ status: 'done', error: undefined });
+  });
 });

@@ -74,6 +74,20 @@ export class JobQueue<I, R> {
     }
   }
 
+  /** Put a failed or cancelled item back at the end of the line. */
+  retry(id: string): void {
+    const item = this.list.find((i) => i.id === id && (i.status === 'failed' || i.status === 'cancelled'));
+    if (!item) return;
+    this.list.splice(this.list.indexOf(item), 1);
+    item.status = 'queued';
+    item.error = undefined;
+    item.progress = null;
+    item.step = '';
+    this.list.push(item);
+    this.emit();
+    void this.pump();
+  }
+
   /** Drop a finished/failed/cancelled item from the list. */
   remove(id: string): void {
     const i = this.list.findIndex((x) => x.id === id && x.status !== 'queued' && x.status !== 'running');

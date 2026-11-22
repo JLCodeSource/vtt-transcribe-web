@@ -13,6 +13,8 @@
     onnew: () => void;
     oncancel: (id: string) => void;
     ondismiss: (id: string) => void;
+    onretry: (id: string) => void;
+    canRetry: (i: LiveItem) => boolean;
     onopen: (id: string) => void;
     ondelete: (id: string) => void;
     onretention: (id: string, r: Retention) => void;
@@ -59,6 +61,7 @@
             {#if i.status === 'queued' || i.status === 'running'}
               <button type="button" onclick={() => p.oncancel(i.id)}>Cancel</button>
             {:else}
+              {#if p.canRetry(i)}<button type="button" onclick={() => p.onretry(i.id)}>Retry</button>{/if}
               <button type="button" onclick={() => p.ondismiss(i.id)}>Dismiss</button>
             {/if}
           </div>

@@ -7,7 +7,7 @@ import type { JobOptions, Outcome } from '../lib/pipeline';
 
 const opts: JobOptions = { engine: 'local', apiKey: 'sk-secret', model: 'base', language: 'en', target: '', diarize: false, speakerCount: 'auto' };
 const file = (n: string) => new File(['x'], n);
-const wait = () => new Promise((r) => setTimeout(r, 20));
+const wait = () => new Promise((r) => setTimeout(r, 80));
 
 function make(o: { idb?: IDBFactory | undefined; clock?: { t: number }; runner?: (kind: string) => Outcome; keepAudio?: boolean } = {}) {
   const clock = o.clock ?? { t: Date.UTC(2026, 0, 1) };
