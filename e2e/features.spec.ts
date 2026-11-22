@@ -203,3 +203,51 @@ test('keeps every version: two languages, switch, re-cluster, merge on one versi
   expect(out).toContain('Hello everyone.\nBonjour à tous.');
   expect(out).not.toContain('Speaker');
 });
+
+test('a result saved by an older release: on-device "Add language" asks for the source language once', async ({ page }) => {
+  await page.addInitScript(() => {
+    (globalThis as Record<string, unknown>).__VTT_TRANSLATE_FACTORY__ = async ({ pair }: { pair: string }) => (texts: string[]) => texts.map((t) => `[${pair}] ${t}`);
+  });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Jobs' })).toBeVisible();
+  // write an old-shape record (translation baked into the segments, no source language) straight into IndexedDB
+  await page.evaluate(() => new Promise<void>((res, rej) => {
+    const r = indexedDB.open('vtt-transcribe', 1);
+    r.onerror = () => rej(r.error);
+    r.onupgradeneeded = () => { r.result.createObjectStore('jobs', { keyPath: 'id' }); r.result.createObjectStore('audio'); };
+    r.onsuccess = () => {
+      const t = r.result.transaction('jobs', 'readwrite');
+      t.objectStore('jobs').put({
+        id: 'old1', name: 'legacy.wav', completedAt: Date.now(), awaitingReview: false, translate: null, ranOn: 'on this device',
+        segments: [{ start: 0, end: 2, text: 'Hello everyone.', translation: 'Hola a todos.' }],
+        turns: null, names: {}, retention: { mode: 'keep' }, expiresAt: null, downloadedAt: null, hasAudio: false,
+      });
+      t.oncomplete = () => res();
+    };
+  }));
+  await page.reload();
+  await page.getByRole('button', { name: 'Jobs' }).click();
+  await page.getByRole('button', { name: 'Open' }).click();
+  // the old translation is kept, labelled honestly
+  await expect(page.getByText('Hola a todos.')).toBeVisible();
+  const lang = page.getByLabel('Language', { exact: true });
+  await lang.selectOption('__add');
+  await page.getByLabel('Translate into').selectOption('fr');
+  await page.getByLabel('Translation engine').selectOption('local');
+  // on-device needs the source: it cannot be left blank and is not guessed
+  await expect(page.getByText(/saved before the language was recorded/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Translate', exact: true })).toBeDisabled();
+  await page.getByLabel('Audio language').selectOption('en');
+  await page.getByRole('button', { name: 'Translate', exact: true }).click();
+  await expect(page.getByText('[en-fr] Hello everyone.')).toBeVisible();
+  // it was stored: the next language does not ask again
+  await lang.selectOption('__add');
+  await page.getByLabel('Translate into').selectOption('de');
+  await page.getByLabel('Translation engine').selectOption('local');
+  await expect(page.getByText(/saved before the language was recorded/)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Translate', exact: true }).click();
+  await expect(page.getByText('[en-de] Hello everyone.')).toBeVisible();
+  // and the original translation is still available
+  await lang.selectOption({ label: 'Translation (language not recorded)' });
+  await expect(page.getByText('Hola a todos.')).toBeVisible();
+});

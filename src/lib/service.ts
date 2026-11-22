@@ -218,13 +218,25 @@ export class JobService {
   /**
    * Add (or re-run) a translation of the ORIGINAL segments into `target`. Queued like any job; only that
    * language is added or replaced when it finishes.
+   *
+   * The source language is the one recorded for the result. When none is recorded (records saved by older
+   * releases) the on-device translator cannot pick a model pair, so the caller must supply `source`; it is then
+   * stored on the result once, so it is never asked again. Returns 'needs-source' (nothing queued) when it is
+   * still needed, rather than guessing. OpenAI can translate without knowing the source.
    */
-  async addLanguage(id: string, target: string, engine: 'openai' | 'local', apiKey: string): Promise<void> {
-    const job = await this.getJob(id);
-    if (!job) return;
-    const options: JobOptions = { engine, apiKey, model: 'base', language: job.sourceLang || 'auto', target, diarize: false, speakerCount: 'auto' };
-    this.queue.add(job.name, { kind: 'translate', jobId: id, segments: job.segments, from: job.sourceLang || 'auto', options }, `${id}:t:${target}`);
+  async addLanguage(id: string, target: string, engine: 'openai' | 'local', apiKey: string, source = ''): Promise<'queued' | 'needs-source' | 'missing'> {
+    let job = await this.getJob(id);
+    if (!job) return 'missing';
+    if (source && source !== job.sourceLang) {
+      job = { ...job, sourceLang: source };
+      await this.save(job);
+    }
+    if (!job.sourceLang && engine === 'local') return 'needs-source';
+    const from = job.sourceLang || 'auto';
+    const options: JobOptions = { engine, apiKey, model: 'base', language: from, target, diarize: false, speakerCount: 'auto' };
+    this.queue.add(job.name, { kind: 'translate', jobId: id, segments: job.segments, from, options }, `${id}:t:${target}:${this.now()}`);
     await this.refresh();
+    return 'queued';
   }
 
   async setRetention(id: string, retention: Retention): Promise<void> {

@@ -14,7 +14,10 @@
     translating?: LiveItem;
     loadAudio: () => Promise<Blob | undefined>;
     onfinish: (turns: Turn[] | null, names: SpeakerNames) => Promise<void>;
-    onaddlanguage: (lang: string, engine: 'openai' | 'local') => void;
+    onaddlanguage: (lang: string, engine: 'openai' | 'local', source?: string) => Promise<'queued' | 'needs-source' | 'missing'>;
+    /** a failed translation for this result, to show instead of failing silently */
+    translateError?: LiveItem;
+    ondismisserror: (id: string) => void;
     onrecluster: (count: number) => void;
     onsetversion: (id: string | null) => void;
     onrenameversion: (id: string, name: string) => void;
@@ -66,6 +69,9 @@
   {#if p.job.warning}<p class="warn" role="alert">{p.job.warning}</p>{/if}
   {#if p.job.ranOn}<p class="ranon" data-testid="ran-on">Transcribed {p.job.ranOn}.</p>{/if}
   <p class="ranon">{describeRetention(p.job)}. <a href="#jobs" onclick={(e) => { e.preventDefault(); p.onback(); }}>Change in Jobs</a></p>
+  {#if p.translateError}
+    <p class="warn" role="alert">Translation failed: {p.translateError.error ?? 'something went wrong.'} <button type="button" onclick={() => p.ondismisserror(p.translateError!.id)}>Dismiss</button></p>
+  {/if}
   {#if p.translating}
     <ProgressView
       progress={p.translating.progress ?? { phase: 'transcribe', fraction: null, message: p.translating.status === 'queued' ? 'Translation is waiting its turn…' : 'Translating…' }}

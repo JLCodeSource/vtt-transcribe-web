@@ -174,3 +174,65 @@ describe('JobService version operations', () => {
     expect(svc.stored).toHaveLength(1);
   });
 });
+
+describe('adding a language to a migrated record with no stored source language', () => {
+  const oldRecord = {
+    id: 'o', name: 'o.wav', completedAt: 10, awaitingReview: false, translate: null, ranOn: 'on this device',
+    segments: [{ start: 0, end: 1, text: 'hello', translation: 'hola' }],
+    turns: null, names: {}, retention: { mode: 'keep' }, expiresAt: null, downloadedAt: null, hasAudio: false,
+  };
+  const make = async () => {
+    const idb = new IDBFactory();
+    const db = await new Promise<IDBDatabase>((res) => {
+      const r = idb.open('vtt-transcribe', 1);
+      r.onupgradeneeded = () => { r.result.createObjectStore('jobs', { keyPath: 'id' }); r.result.createObjectStore('audio'); };
+      r.onsuccess = () => res(r.result);
+    });
+    await new Promise<void>((res) => { const t = db.transaction('jobs', 'readwrite'); t.objectStore('jobs').put(oldRecord); t.oncomplete = () => res(); });
+    db.close();
+    const froms: string[] = [];
+    const svc = new JobService({
+      store: new JobStore(idb), defaultRetention: () => ({ mode: 'keep' }), keepAudio: () => false,
+      run: async (item) => {
+        const t = item.input;
+        if (t.kind !== 'translate') throw new Error('unexpected');
+        froms.push(t.from);
+        return { kind: 'translate', segments: t.segments.map((s) => ({ ...s, translation: `[${t.from}>${t.options.target}]` })) };
+      },
+    });
+    await svc.migrate();
+    await svc.refresh();
+    return { svc, froms };
+  };
+  const wait = () => new Promise((r) => setTimeout(r, 80));
+
+  it('on-device: asks for the source instead of guessing, queues nothing, then stores it once', async () => {
+    const { svc, froms } = await make();
+    expect(svc.stored[0].sourceLang).toBe('');
+    expect(await svc.addLanguage('o', 'fr', 'local', '')).toBe('needs-source');
+    await wait();
+    expect(froms).toEqual([]);
+    expect(Object.keys(svc.stored[0].translations)).toEqual(['und']); // nothing was added or lost
+    expect(await svc.addLanguage('o', 'fr', 'local', '', 'en')).toBe('queued');
+    await wait();
+    expect(froms).toEqual(['en']);
+    expect(svc.stored[0].sourceLang).toBe('en');
+    expect(svc.stored[0].translations.fr.texts).toEqual(['[en>fr]']);
+    // remembered: no question the second time
+    expect(await svc.addLanguage('o', 'de', 'local', '')).toBe('queued');
+    await wait();
+    expect(froms).toEqual(['en', 'en']);
+  });
+
+  it('OpenAI can translate without knowing the source', async () => {
+    const { svc, froms } = await make();
+    expect(await svc.addLanguage('o', 'fr', 'openai', 'sk-x')).toBe('queued');
+    await wait();
+    expect(froms).toEqual(['auto']);
+  });
+
+  it('an unknown result id is reported, not ignored', async () => {
+    const { svc } = await make();
+    expect(await svc.addLanguage('nope', 'fr', 'local', '', 'en')).toBe('missing');
+  });
+});

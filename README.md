@@ -68,7 +68,7 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-sli
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npx vitest run          # unit tests
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npx svelte-check        # types
 ./scripts/e2e.sh                  # full e2e suite in a container (builds Dockerfile.e2e once)
-./scripts/e2e.sh --project=real   # any `playwright test` arguments
+./scripts/e2e.sh --project=real   # any `playwright test` arguments (real = real Whisper tiny, speaker and translation models; subpath = the GitHub Pages shape)
 # The suite runs on Chromium, Pixel-7 emulation, Firefox, WebKit and branded Chrome (AAC video), plus a 'real'
 # project (real tiny Whisper and real speaker models, downloaded from Hugging Face) and, when the host has an
 # NVIDIA GPU and the NVIDIA container toolkit (CDI), a 'gpu' project that runs Whisper on WebGPU. e2e.sh detects
@@ -78,6 +78,10 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-sli
 Everything is tested locally in containers. The site is deployed to GitHub Pages by `.github/workflows/pages.yml` on every push to `main`. Note: the `/ort` runtime files include `.wasm` files of about 27-28 MB each; that is under GitHub's 100 MB per-file limit, but a host with a 25 MB per-file limit would not work.
 
 Layout: `src/lib/{openai,local,audio,format,settings,types}.ts` (engines and helpers), `src/lib/{queue,store,versions,retention,service,pipeline,notify}.ts` (job queue, IndexedDB store, retention rules, glue), `src/components/*`, `e2e/*`.
+
+Last full run of the opt-in real-model projects (`--project=real --project=subpath`, after the versions change, 2026-11-22): 6 of 6 passed (real Whisper, French/Spanish auto-detect, on-device French→English translation with the original still available, speaker models agreeing 2/2 with the reference turns, and the sub-path build). The WebGPU `gpu` project only runs when the host GPU is passed into the container and was not part of that run.
+
+On-device "Add language" needs the audio language. Results saved by older releases may not have it recorded, so the app asks once, stores the answer, and never guesses.
 
 ## Test files to try
 
