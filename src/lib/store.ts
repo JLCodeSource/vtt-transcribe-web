@@ -1,5 +1,5 @@
 import type { Segment } from './types';
-import type { SpeakerNames, Turn } from './speakers';
+import { SCHEMA, migrateJob, type DiarizationVersion, type Translation } from './versions';
 import type { Retention } from './retention';
 
 /** A finished result, held in this browser's IndexedDB. Audio is NOT part of it (see putAudio). */
@@ -7,10 +7,20 @@ export interface StoredJob {
   id: string;
   name: string;
   completedAt: number;
+  /** record shape version (see versions.ts); older records are migrated when read */
+  schema: number;
+  /** the ORIGINAL-language segments. Immutable: no translation or speaker is ever written into them. */
   segments: Segment[];
-  /** speaker turns (with voice embeddings) so speakers can be reviewed later; null when not diarized */
-  turns: Turn[] | null;
-  names: SpeakerNames;
+  /** language the audio is in ('' when unknown) */
+  sourceLang: string;
+  /** every translation kept, by language code */
+  translations: Record<string, Translation>;
+  /** every speaker-labelling kept; turns carry embeddings so re-clustering needs no model */
+  diarizations: DiarizationVersion[];
+  /** the version edits apply to and viewers show by default; null = show without speaker labels */
+  activeDiarization: string | null;
+  /** engine that produced it, used as the default for adding languages later */
+  engine: 'openai' | 'local';
   /** diarization finished but the human review has not been confirmed or skipped yet */
   awaitingReview: boolean;
   /** translation still to run once the speakers are confirmed */
@@ -92,16 +102,31 @@ export class JobStore {
   get(id: string): Promise<StoredJob | undefined> {
     return this.tx<StoredJob | undefined>([JOBS], false, ([s], out) => {
       const r = s.get(id);
-      r.onsuccess = () => out(r.result as StoredJob | undefined);
+      r.onsuccess = () => out(r.result ? migrateJob(r.result) : undefined);
     });
   }
   /** newest first */
   async list(): Promise<StoredJob[]> {
     const all = await this.tx<StoredJob[]>([JOBS], false, ([s], out) => {
       const r = s.getAll();
-      r.onsuccess = () => out(r.result as StoredJob[]);
+      r.onsuccess = () => out((r.result as unknown[]).map(migrateJob));
     });
     return all.sort((a, b) => b.completedAt - a.completedAt);
+  }
+  /** Rewrite any record still in an older shape to the current one, in place. Safe to run on every load. */
+  async migrateAll(): Promise<number> {
+    return this.tx<number>([JOBS], true, ([s], out) => {
+      const r = s.getAll();
+      r.onsuccess = () => {
+        let n = 0;
+        for (const raw of r.result as Array<{ schema?: number }>) {
+          if (raw.schema === SCHEMA) continue;
+          s.put(migrateJob(raw));
+          n++;
+        }
+        out(n);
+      };
+    });
   }
   remove(id: string): Promise<void> {
     return this.tx<void>([JOBS, AUDIO], true, ([j, a]) => {

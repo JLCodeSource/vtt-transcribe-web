@@ -7,6 +7,8 @@ export interface Segment {
   speaker?: string;
   /** text translated into the chosen target language */
   translation?: string;
+  /** second line shown under `text` in bilingual output (never stored) */
+  alt?: string;
 }
 
 export type ProgressPhase = 'decode' | 'download' | 'load' | 'transcribe';

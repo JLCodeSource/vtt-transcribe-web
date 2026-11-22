@@ -1,7 +1,9 @@
 import { JobQueue, type QueueItem, type Runner } from './queue';
+import { SCHEMA } from './versions';
 import { JobStore, StoreError, type StoredJob } from './store';
 import { expiryFor, sweepExpired, type Retention } from './retention';
 import type { Outcome, Task, JobOptions } from './pipeline';
+import { addDiarization, addTranslation, deleteVersion, recluster, renameVersion, setActive, updateActive } from './versions';
 
 export type LiveItem = QueueItem<Task, Outcome>;
 
@@ -52,6 +54,15 @@ export class JobService {
       this.files.set(jobId, file);
       return this.queue.add(file.name, { kind: 'process', jobId, file, options }, jobId);
     });
+  }
+
+  /** Upgrade records saved by older versions of the app to the current shape (once; cheap when none). */
+  async migrate(): Promise<void> {
+    try {
+      await this.d.store.migrateAll();
+    } catch (e) {
+      this.storageError = (e as Error).message;
+    }
   }
 
   async refresh(): Promise<void> {
@@ -119,20 +130,27 @@ export class JobService {
     const t = item.input;
     if (r.kind === 'translate') {
       const job = await this.getJob(t.jobId);
-      if (job) await this.save({ ...job, segments: r.segments, translate: null });
+      // ADD this language; the original segments and every other translation stay as they are
+      if (job) await this.save({ ...addTranslation(job, t.options.target, r.segments.map((s) => s.translation ?? s.text), this.now(), t.options.engine), translate: null });
       return;
     }
     if (t.kind !== 'process') return;
     const now = this.now();
     const retention = this.d.defaultRetention();
     const o = t.options;
-    const job: StoredJob = {
+    const from = o.language === 'auto' && r.detectedLang ? r.detectedLang : o.language;
+    const translated = r.segments.some((s) => s.translation != null) && !!o.target;
+    let job: StoredJob = {
       id: t.jobId,
       name: item.name,
       completedAt: now,
-      segments: r.segments,
-      turns: r.turns,
-      names: {},
+      schema: SCHEMA,
+      segments: r.segments.map(({ translation: _t, speaker: _s, ...s }) => s),
+      sourceLang: from === 'auto' ? '' : from,
+      translations: {},
+      diarizations: [],
+      activeDiarization: null,
+      engine: o.engine,
       awaitingReview: !!r.turns,
       translate: r.turns && o.target && o.reviewFirst ? { engine: o.engine, target: o.target, from: o.language === 'auto' && r.detectedLang ? r.detectedLang : o.language } : null,
       ranOn: r.ranOn,
@@ -142,6 +160,8 @@ export class JobService {
       downloadedAt: null,
       hasAudio: false,
     };
+    if (translated) job = addTranslation(job, o.target, r.segments.map((s) => s.translation ?? s.text), now, o.engine);
+    if (r.turns) job = addDiarization(job, r.turns, {}, now);
     if (!(await this.save(job))) return;
     if (this.d.keepAudio()) {
       try {
@@ -153,11 +173,11 @@ export class JobService {
     }
   }
 
-  /** The speaker review was confirmed (turns+names) or skipped (turns null). Queues the deferred translation, if any. */
-  async finishReview(id: string, turns: StoredJob['turns'], names: StoredJob['names'], fallbackKey = ''): Promise<void> {
+  /** The speaker review was confirmed (turns+names, saved into the ACTIVE version) or skipped (turns null: no labels shown, versions kept). Queues the deferred translation, if any. */
+  async finishReview(id: string, turns: StoredJob['diarizations'][number]['turns'] | null, names: StoredJob['diarizations'][number]['names'], fallbackKey = ''): Promise<void> {
     const job = await this.getJob(id);
     if (!job) return;
-    await this.save({ ...job, turns, names: turns ? names : {}, awaitingReview: false });
+    await this.save({ ...(turns ? updateActive(job, turns, names) : setActive(job, null)), awaitingReview: false });
     const pending = job.translate;
     if (pending) {
       const base = this.options.get(id);
@@ -168,9 +188,42 @@ export class JobService {
     await this.refresh();
   }
 
-  async updateReview(id: string, turns: StoredJob['turns'], names: StoredJob['names']): Promise<void> {
+  /** Apply a pure edit to one stored result and save it. */
+  async edit(id: string, fn: (j: StoredJob) => StoredJob | null): Promise<boolean> {
     const job = await this.getJob(id);
-    if (job) await this.save({ ...job, turns, names });
+    const next = job && fn(job);
+    if (next) await this.save(next);
+    await this.refresh();
+    return !!next;
+  }
+
+  /** Merge / split / rename in the review editor: edits the active version only. */
+  updateReview(id: string, turns: StoredJob['diarizations'][number]['turns'], names: StoredJob['diarizations'][number]['names']): Promise<boolean> {
+    return this.edit(id, (j) => updateActive(j, turns, names));
+  }
+  /** Re-cluster to N speakers from the stored embeddings (no model run); adds a version. */
+  recluster(id: string, count: number): Promise<boolean> {
+    return this.edit(id, (j) => recluster(j, count, this.now()));
+  }
+  setActiveVersion(id: string, version: string | null): Promise<boolean> {
+    return this.edit(id, (j) => setActive(j, version));
+  }
+  renameVersion(id: string, version: string, name: string): Promise<boolean> {
+    return this.edit(id, (j) => renameVersion(j, version, name));
+  }
+  deleteVersion(id: string, version: string): Promise<boolean> {
+    return this.edit(id, (j) => deleteVersion(j, version));
+  }
+
+  /**
+   * Add (or re-run) a translation of the ORIGINAL segments into `target`. Queued like any job; only that
+   * language is added or replaced when it finishes.
+   */
+  async addLanguage(id: string, target: string, engine: 'openai' | 'local', apiKey: string): Promise<void> {
+    const job = await this.getJob(id);
+    if (!job) return;
+    const options: JobOptions = { engine, apiKey, model: 'base', language: job.sourceLang || 'auto', target, diarize: false, speakerCount: 'auto' };
+    this.queue.add(job.name, { kind: 'translate', jobId: id, segments: job.segments, from: job.sourceLang || 'auto', options }, `${id}:t:${target}`);
     await this.refresh();
   }
 

@@ -16,6 +16,6 @@ test('on-device: detect French, then translate to English with real models', asy
   await expect(page.locator('ol')).toContainText(/hello|good morning|today|computers/i);
   await expect(page.locator('ol')).not.toContainText(/aujourd|ordinateurs/i);
   // The original stays available.
-  await page.getByLabel('Show / export the translation').uncheck();
+  await page.getByLabel('Language', { exact: true }).selectOption('');
   await expect(page.locator('ol')).toContainText(/bonjour|aujourd|ordinateur/i);
 });

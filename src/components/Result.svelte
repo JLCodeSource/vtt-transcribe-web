@@ -2,7 +2,8 @@
   import TranscriptViewer from './TranscriptViewer.svelte';
   import SpeakerReview from './SpeakerReview.svelte';
   import ProgressView from './ProgressView.svelte';
-  import { labelSegments, type SpeakerNames, type Turn } from '../lib/speakers';
+  import type { SpeakerNames, Turn } from '../lib/speakers';
+  import { activeVersion } from '../lib/versions';
   import type { StoredJob } from '../lib/store';
   import type { LiveItem } from '../lib/service';
   import { describeRetention } from '../lib/retention';
@@ -13,6 +14,11 @@
     translating?: LiveItem;
     loadAudio: () => Promise<Blob | undefined>;
     onfinish: (turns: Turn[] | null, names: SpeakerNames) => Promise<void>;
+    onaddlanguage: (lang: string, engine: 'openai' | 'local') => void;
+    onrecluster: (count: number) => void;
+    onsetversion: (id: string | null) => void;
+    onrenameversion: (id: string, name: string) => void;
+    ondeleteversion: (id: string) => void;
     ondownload: () => void;
     oncancel: (id: string) => void;
     onback: () => void;
@@ -21,6 +27,9 @@
   const p: Props = $props();
   // svelte-ignore state_referenced_locally
   let reviewing = $state(p.job.awaitingReview);
+  // language shown (null = original); starts on the newest translation
+  // svelte-ignore state_referenced_locally
+  let lang = $state<string | null>(Object.values(p.job.translations).sort((a, b) => a.createdAt - b.createdAt).at(-1)?.lang ?? null);
   let audio = $state<Blob | undefined>();
   let audioReady = $state(false);
   let busy = $state(false);
@@ -33,19 +42,19 @@
     void p.loadAudio().then((a) => ((audio = a), (audioReady = true)));
   });
 
-  const segments = $derived(p.job.turns ? labelSegments(p.job.segments, p.job.turns, p.job.names) : p.job.segments);
+  const version = $derived(activeVersion(p.job));
   const basename = $derived(p.job.name.replace(/\.[^.]+$/, '') || 'transcript');
 </script>
 
-{#if p.translating}
+{#if p.translating && (p.job.awaitingReview || !Object.keys(p.job.translations).length)}
   <ProgressView
     progress={p.translating.progress ?? { phase: 'transcribe', fraction: null, message: p.translating.status === 'queued' ? 'Translation is waiting its turn…' : 'Translating…' }}
     oncancel={() => p.oncancel(p.translating!.id)}
   />
-{:else if reviewing && p.job.turns && audioReady}
+{:else if reviewing && version && audioReady}
   <SpeakerReview
-    turns={p.job.turns}
-    names={p.job.names}
+    turns={version.turns}
+    names={version.names}
     segments={p.job.segments}
     {audio}
     onconfirm={finish}
@@ -57,13 +66,25 @@
   {#if p.job.warning}<p class="warn" role="alert">{p.job.warning}</p>{/if}
   {#if p.job.ranOn}<p class="ranon" data-testid="ran-on">Transcribed {p.job.ranOn}.</p>{/if}
   <p class="ranon">{describeRetention(p.job)}. <a href="#jobs" onclick={(e) => { e.preventDefault(); p.onback(); }}>Change in Jobs</a></p>
+  {#if p.translating}
+    <ProgressView
+      progress={p.translating.progress ?? { phase: 'transcribe', fraction: null, message: p.translating.status === 'queued' ? 'Translation is waiting its turn…' : 'Translating…' }}
+      oncancel={() => p.oncancel(p.translating!.id)}
+    />
+  {/if}
   <TranscriptViewer
-    {segments}
+    job={p.job}
+    bind:lang
     {basename}
     onreset={p.onnew}
     onback={p.onback}
     ondownload={p.ondownload}
-    onspeakers={p.job.turns ? () => (reviewing = true) : undefined}
+    onspeakers={() => (reviewing = true)}
+    onaddlanguage={p.onaddlanguage}
+    onrecluster={p.onrecluster}
+    onsetversion={p.onsetversion}
+    onrenameversion={p.onrenameversion}
+    ondeleteversion={p.ondeleteversion}
   />
 {/if}
 
