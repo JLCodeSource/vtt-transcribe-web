@@ -14,7 +14,7 @@
     ondownload?: () => void;
     onback?: () => void;
     /** queue a translation of the original into `lang` (adds it, or replaces just that language) */
-    onaddlanguage: (lang: string, engine: 'openai' | 'local') => void;
+    onaddlanguage: (lang: string, engine: 'openai' | 'local', source?: string) => Promise<'queued' | 'needs-source' | 'missing'>;
     onrecluster: (count: number) => void;
     onsetversion: (id: string | null) => void;
     onrenameversion: (id: string, name: string) => void;
@@ -54,12 +54,18 @@
     if (v === '__add') { adding = true; return; }
     lang = v === '' ? null : v;
   }
-  function startTranslate() {
+  // results saved by older releases may not know what language the audio is in
+  let source = $state('');
+  let needSource = $state(false);
+  const askSource = $derived(needSource || (!job.sourceLang && newEngine === 'local'));
+  async function startTranslate() {
     if (!newLang) return;
     if (exists && !confirmReplace) { confirmReplace = true; return; }
-    p.onaddlanguage(newLang, newEngine);
+    const r = await p.onaddlanguage(newLang, newEngine, source || undefined);
+    if (r === 'needs-source') { needSource = true; return; }
     adding = false;
     confirmReplace = false;
+    needSource = false;
     newLang = '';
   }
 
@@ -129,10 +135,19 @@
           <option value="openai">OpenAI (needs your key)</option>
         </select>
       </label>
+      {#if askSource}
+        <label>Audio language
+          <select aria-label="Audio language" bind:value={source}>
+            <option value="">Choose…</option>
+            {#each LANGUAGES as [c, n] (c)}<option value={c}>{n}</option>{/each}
+          </select>
+        </label>
+        <span class="hint">This result was saved before the language was recorded. Choose it once; it is remembered.</span>
+      {/if}
       {#if confirmReplace}
         <span class="hint">Replace the existing {languageName(newLang)} translation? Other languages are kept.</span>
       {/if}
-      <button type="button" class="primary" disabled={!newLang} onclick={startTranslate}>{confirmReplace ? 'Replace it' : exists ? 'Re-translate' : 'Translate'}</button>
+      <button type="button" class="primary" disabled={!newLang || (askSource && newEngine === 'local' && !source)} onclick={startTranslate}>{confirmReplace ? 'Replace it' : exists ? 'Re-translate' : 'Translate'}</button>
       <button type="button" onclick={() => ((adding = false), (confirmReplace = false))}>Cancel</button>
     </div>
   {/if}

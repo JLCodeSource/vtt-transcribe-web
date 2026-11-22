@@ -91,6 +91,9 @@
   const openJob = $derived(jobs.find((j) => j.id === openId));
   const translating = $derived(live.find((i) => i.input.kind === 'translate' && i.input.jobId === openId && (i.status === 'queued' || i.status === 'running')));
 
+  /** a translation for the open result that failed: shown to the user, never silent */
+  const translateError = $derived(live.find((i) => i.input.kind === 'translate' && i.input.jobId === openId && i.status === 'failed'));
+
   function submit() {
     if (!canStart) return;
     if (engine === 'openai') (remember ? saveKey(apiKey.trim()) : forgetKey());
@@ -235,7 +238,9 @@
           const names = $state.snapshot(n) as SpeakerNames;
           await service.finishReview(openJob.id, turns, names, apiKey.trim());
         }}
-        onaddlanguage={(l, e) => void service.addLanguage(openJob.id, l, e, apiKey.trim())}
+        onaddlanguage={(l, e, src) => service.addLanguage(openJob.id, l, e, apiKey.trim(), src)}
+        {translateError}
+        ondismisserror={(id) => service.queue.remove(id)}
         onrecluster={(n) => void service.recluster(openJob.id, n)}
         onsetversion={(v) => void service.setActiveVersion(openJob.id, v)}
         onrenameversion={(v, n) => void service.renameVersion(openJob.id, v, n)}
