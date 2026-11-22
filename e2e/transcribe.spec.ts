@@ -71,7 +71,9 @@ test('BYOK: key is remembered only when the user opts in', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel(/Use OpenAI instead/).check();
   await page.getByLabel('Your OpenAI API key').fill(FAKE_KEY);
-  await page.getByLabel(/Remember the key/).check();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByLabel(/Remember my OpenAI key/).check();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
   await upload(page);
   await page.getByRole('button', { name: 'Transcribe' }).click();
   await expect(page.getByText('Hello there.')).toBeVisible();
@@ -90,7 +92,7 @@ test('invalid key shows an inline error, not an alert popup', async ({ page }) =
   await upload(page);
   await page.getByRole('button', { name: 'Transcribe' }).click();
   await expect(page.getByRole('alert')).toContainText('rejected the API key');
-  await expect(page.getByRole('button', { name: 'Transcribe' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Add files' })).toBeVisible(); // the failure is listed on the Jobs page
 });
 
 test('on-device is the default; OpenAI is an explicit opt-in', async ({ page }) => {

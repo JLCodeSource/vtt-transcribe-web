@@ -2,8 +2,8 @@
   import type { Segment } from '../lib/types';
   import { EXPORTERS, clockTime, view, type ExportFormat } from '../lib/format';
 
-  interface Props { segments: Segment[]; basename: string; onreset: () => void; onspeakers?: () => void }
-  const { segments: all, basename, onreset, onspeakers }: Props = $props();
+  interface Props { segments: Segment[]; basename: string; onreset: () => void; onspeakers?: () => void; ondownload?: () => void; onback?: () => void }
+  const { segments: all, basename, onreset, onspeakers, ondownload, onback }: Props = $props();
   const hasTranslation = $derived(all.some((s) => s.translation != null));
   let showTranslated = $state(true);
   const segments = $derived(view(all, hasTranslation && showTranslated));
@@ -22,6 +22,7 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 0);
+    ondownload?.();
   }
 </script>
 
@@ -33,6 +34,7 @@
         <button type="button" onclick={() => download(f)}>{f.toUpperCase()}</button>
       {/each}
       {#if onspeakers}<button type="button" onclick={onspeakers}>Edit speakers</button>{/if}
+      {#if onback}<button type="button" onclick={onback}>Back to jobs</button>{/if}
       <button type="button" class="primary" onclick={onreset}>New transcription</button>
     </div>
   </header>
