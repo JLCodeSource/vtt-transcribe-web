@@ -110,8 +110,24 @@ test('diarization: review, merge, split, rename, then speakers appear in transcr
   expect(await txt(page)).toContain('Robert: Goodbye everyone.');
 });
 
-test('diarization and translation together: speakers first, translation only after review', async ({ page }) => {
+test('diarization and translation together: by default everything runs first and the speakers are reviewed at the end', async ({ page }) => {
   const chat = await setup(page);
+  await page.getByLabel('Translate the transcript into').selectOption('es');
+  await page.getByLabel('Identify the speakers').check();
+  await page.getByRole('button', { name: /Transcribe/ }).click();
+  await expect(page.getByRole('button', { name: 'Looks good' })).toBeVisible();
+  expect(chat).toHaveLength(1); // already translated by the time the human is asked about speakers
+  await page.getByRole('button', { name: 'Looks good' }).click();
+  await expect(page.getByRole('button', { name: 'SRT', exact: true })).toBeVisible();
+  expect(chat).toHaveLength(1);
+  expect(await txt(page)).toContain('Speaker 2: Adiós a todos.');
+});
+
+test('setting: review speakers before translating defers the translation until confirmed', async ({ page }) => {
+  const chat = await setup(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByLabel('Review the speakers before translating').check();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByLabel('Translate the transcript into').selectOption('es');
   await page.getByLabel('Identify the speakers').check();
   await page.getByRole('button', { name: /Transcribe/ }).click();

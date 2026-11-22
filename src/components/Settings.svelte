@@ -7,6 +7,8 @@
     retention: Retention;
     rememberKey: boolean;
     keepAudio: boolean;
+    reviewFirst: boolean;
+    onreviewfirst: (v: boolean) => void;
     notify: boolean;
     notifyDenied: boolean;
     onretention: (r: Retention) => void;
@@ -33,6 +35,15 @@
       <input type="checkbox" checked={p.keepAudio} onchange={(e) => p.onkeepaudio(e.currentTarget.checked)} />
       Also keep the audio file in this browser, so speaker samples can be played when you review later (uses a lot of space; deleted together with the result)
     </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Speakers and translation</legend>
+    <label class="check">
+      <input type="checkbox" checked={p.reviewFirst} onchange={(e) => p.onreviewfirst(e.currentTarget.checked)} />
+      Review the speakers before translating
+    </label>
+    <p class="hint">Off by default: transcription, speaker detection and translation all run first, and you review and name the speakers at the end. Turn this on to confirm the speakers before the translation runs.</p>
   </fieldset>
 
   <fieldset>
