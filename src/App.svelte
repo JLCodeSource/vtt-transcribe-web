@@ -67,7 +67,7 @@
   service.onChange(sync);
 
   onMount(() => {
-    void service.refresh().then(() => service.sweep());
+    void service.migrate().then(() => service.refresh()).then(() => service.sweep());
     const t = setInterval(() => void service.sweep(), 60_000);
     return () => clearInterval(t);
   });
@@ -233,8 +233,13 @@
         onfinish={async (t, n) => {
           const turns = $state.snapshot(t) as Turn[] | null;
           const names = $state.snapshot(n) as SpeakerNames;
-          await (openJob.awaitingReview ? service.finishReview(openJob.id, turns, names, apiKey.trim()) : service.updateReview(openJob.id, turns, names));
+          await service.finishReview(openJob.id, turns, names, apiKey.trim());
         }}
+        onaddlanguage={(l, e) => void service.addLanguage(openJob.id, l, e, apiKey.trim())}
+        onrecluster={(n) => void service.recluster(openJob.id, n)}
+        onsetversion={(v) => void service.setActiveVersion(openJob.id, v)}
+        onrenameversion={(v, n) => void service.renameVersion(openJob.id, v, n)}
+        ondeleteversion={(v) => void service.deleteVersion(openJob.id, v)}
         ondownload={() => void service.markDownloaded(openJob.id)}
         oncancel={(id) => service.queue.cancel(id)}
         onback={() => go('jobs')}

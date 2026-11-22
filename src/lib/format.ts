@@ -27,7 +27,7 @@ export function clockTime(seconds: number): string {
 }
 
 const clean = (t: string) => t.trim().replace(/\r?\n+/g, ' ');
-const line = (s: Segment) => (s.speaker ? `${s.speaker}: ${clean(s.text)}` : clean(s.text));
+const line = (s: Segment) => (s.speaker ? `${s.speaker}: ${clean(s.text)}` : clean(s.text)) + (s.alt ? `\n${clean(s.alt)}` : '');
 
 /** The segments as they should read: translated text when chosen, else the original. */
 export function view(segments: Segment[], translated: boolean): Segment[] {

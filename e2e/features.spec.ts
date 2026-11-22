@@ -29,7 +29,7 @@ async function setup(page: Page) {
       chat.push(req.postData() ?? '');
       return route.fulfill({
         status: 200, headers: CORS, contentType: 'application/json',
-        body: JSON.stringify({ choices: [{ message: { content: 'LINE_0: Hola a todos.\nLINE_1: Adiós a todos.' } }] }),
+        body: JSON.stringify({ choices: [{ message: { content: (req.postData() ?? '').includes('French') ? 'LINE_0: Bonjour à tous.\nLINE_1: Au revoir à tous.' : 'LINE_0: Hola a todos.\nLINE_1: Adiós a todos.' } }] }),
       });
     }
     await route.fulfill({
@@ -70,7 +70,7 @@ test('translates into the chosen language and exports either version', async ({ 
   expect(chat[0]).toContain('LINE_1: Goodbye everyone.');
   expect(await txt(page)).toContain('Adiós a todos.');
 
-  await page.getByLabel('Show / export the translation').uncheck();
+  await page.getByLabel('Language', { exact: true }).selectOption('');
   await expect(page.getByText('Goodbye everyone.')).toBeVisible();
   expect(await txt(page)).toContain('Goodbye everyone.');
 });
@@ -146,4 +146,60 @@ test('skipping speaker labels keeps the plain transcript', async ({ page }) => {
   await page.getByRole('button', { name: 'Skip speaker labels' }).click();
   expect(await txt(page)).toBe('Hello everyone.\nGoodbye everyone.\n');
   await expect(page.getByRole('button', { name: 'Edit speakers' })).toHaveCount(0);
+});
+
+test('keeps every version: two languages, switch, re-cluster, merge on one version, bilingual export', async ({ page }) => {
+  const chat = await setup(page);
+  await page.getByLabel('Translate the transcript into').selectOption('es');
+  await page.getByLabel('Identify the speakers').check();
+  await page.getByRole('button', { name: /Transcribe/ }).click();
+  await page.getByRole('button', { name: 'Looks good' }).click();
+  await expect(page.getByText('Hola a todos.')).toBeVisible();
+
+  // add a second language: Spanish stays available
+  const lang = page.getByLabel('Language', { exact: true });
+  await lang.selectOption('__add');
+  await page.getByLabel('Translate into').selectOption('fr');
+  await page.getByLabel('Translation engine').selectOption('openai');
+  await page.getByRole('button', { name: 'Translate', exact: true }).click();
+  await expect(page.getByText('Bonjour à tous.')).toBeVisible();
+  expect(chat).toHaveLength(2);
+  await lang.selectOption('es');
+  await expect(page.getByText('Hola a todos.')).toBeVisible();
+  await lang.selectOption('');
+  await expect(page.getByText('Hello everyone.')).toBeVisible();
+
+  // re-translating an existing language asks first
+  await lang.selectOption('__add');
+  await page.getByLabel('Translate into').selectOption('es');
+  await page.getByLabel('Translation engine').selectOption('openai');
+  await page.getByRole('button', { name: 'Re-translate' }).click();
+  await expect(page.getByText(/Replace the existing Spanish translation/)).toBeVisible();
+  expect(chat).toHaveLength(2);
+  await page.getByRole('button', { name: 'Cancel' }).click();
+
+  // re-run with 1 speaker adds a version; version 1 is still there
+  await page.getByLabel('Number of speakers').fill('1');
+  await page.getByRole('button', { name: 'Re-run with 1 speaker', exact: true }).click();
+  const ver = page.getByLabel('Speaker version', { exact: true });
+  await expect(ver.locator('option')).toHaveCount(3); // none, version 1 (2 speakers), version 2 (1 speaker)
+  expect(await txt(page)).toContain('Speaker 1: Goodbye everyone.');
+  await ver.selectOption({ label: 'Speakers (version 1)' });
+  expect(await txt(page)).toContain('Speaker 2: Goodbye everyone.');
+
+  // merge on version 1 only
+  await page.getByRole('button', { name: 'Edit speakers' }).click();
+  await page.getByLabel('Merge Speaker 2 into').selectOption({ label: 'Speaker 1' });
+  await page.locator('li[data-speaker="1"]').getByRole('button', { name: 'Merge', exact: true }).click();
+  await page.getByRole('button', { name: 'Looks good' }).click();
+  expect(await txt(page)).toContain('Speaker 1: Goodbye everyone.');
+
+  // export chooses language + version, and can be bilingual
+  await page.getByText('Export options').click();
+  await page.getByLabel('Export language').selectOption('fr');
+  await page.getByLabel('Export speaker version').selectOption({ label: 'No speaker labels' });
+  await page.getByLabel(/Bilingual/).check();
+  const out = await txt(page);
+  expect(out).toContain('Hello everyone.\nBonjour à tous.');
+  expect(out).not.toContain('Speaker');
 });

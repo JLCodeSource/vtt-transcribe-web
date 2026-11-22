@@ -4,9 +4,11 @@ import { JobStore, StoreError, type StoredJob } from '../lib/store';
 
 const job = (id: string, at = 1): StoredJob => ({
   id, name: `${id}.wav`, completedAt: at,
-  segments: [{ start: 0, end: 1, text: 'hello', translation: 'hola' }],
-  turns: [{ start: 0, end: 1, embedding: Float32Array.from([0.6, 0.8]), speaker: 0 }],
-  names: { 0: 'Ada' }, awaitingReview: false, translate: null, ranOn: 'on this device',
+  schema: 2, sourceLang: 'en', engine: 'local',
+  segments: [{ start: 0, end: 1, text: 'hello' }],
+  translations: { es: { lang: 'es', texts: ['hola'], createdAt: 1 } },
+  diarizations: [{ id: 'v1', name: 'v1', createdAt: 1, origin: 'auto', names: { 0: 'Ada' }, turns: [{ start: 0, end: 1, embedding: Float32Array.from([0.6, 0.8]), speaker: 0 }] }],
+  activeDiarization: 'v1', awaitingReview: false, translate: null, ranOn: 'on this device',
   retention: { mode: 'days', days: 7 }, expiresAt: 99, downloadedAt: null, hasAudio: false,
 });
 
@@ -15,9 +17,9 @@ describe('JobStore (fake IndexedDB)', () => {
     const idb = new IDBFactory();
     await new JobStore(idb).put(job('a'));
     const back = await new JobStore(idb).get('a'); // a "reload": new instance, same database
-    expect(back?.segments[0].translation).toBe('hola');
-    expect(back?.names).toEqual({ 0: 'Ada' });
-    expect(Array.from(back!.turns![0].embedding)).toEqual([Float32Array.from([0.6, 0.8])[0], Float32Array.from([0.6, 0.8])[1]]);
+    expect(back?.translations.es.texts).toEqual(['hola']);
+    expect(back?.diarizations[0].names).toEqual({ 0: 'Ada' });
+    expect(Array.from(back!.diarizations[0].turns[0].embedding)).toEqual([Float32Array.from([0.6, 0.8])[0], Float32Array.from([0.6, 0.8])[1]]);
   });
 
   it('lists newest first, removes one, clears all', async () => {

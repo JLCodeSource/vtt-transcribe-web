@@ -104,8 +104,9 @@ describe('JobService', () => {
     const done = svc.stored[0];
     expect(done.awaitingReview).toBe(false);
     expect(done.translate).toBeNull();
-    expect(done.segments[0].translation).toBe('hola');
-    expect(done.names).toEqual({ 0: 'Ada' });
+    expect(done.translations.es.texts).toEqual(['hola']);
+    expect(done.segments[0]).toEqual({ start: 0, end: 1, text: 'hi' }); // the original is never edited
+    expect(done.diarizations[0].names).toEqual({ 0: 'Ada' });
   });
 
   it('by default nothing is deferred: translation already happened, only the speaker review is left', async () => {
@@ -118,7 +119,8 @@ describe('JobService', () => {
     await svc.finishReview(svc.stored[0].id, turns, { 0: 'Ada' });
     await wait();
     expect(ran).toEqual(['a.wav']); // no second (translate) task
-    expect(svc.stored[0].segments[0].translation).toBe('hola');
+    expect(svc.stored[0].translations.es.texts).toEqual(['hola']);
+    expect(svc.stored[0].segments[0].translation).toBeUndefined();
   });
 
   it('a storage failure keeps the result in memory with a message instead of losing it', async () => {
