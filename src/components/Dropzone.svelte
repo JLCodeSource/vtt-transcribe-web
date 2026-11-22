@@ -1,12 +1,12 @@
 <script lang="ts">
-  interface Props { file: File | null; disabled?: boolean; onfile: (f: File) => void }
-  let { file, disabled = false, onfile }: Props = $props();
+  interface Props { files: File[]; disabled?: boolean; onfiles: (f: File[]) => void }
+  let { files, disabled = false, onfiles }: Props = $props();
   let dragging = $state(false);
   let input: HTMLInputElement;
 
   function pick(list: FileList | null | undefined) {
-    const f = list?.[0];
-    if (f) onfile(f);
+    const picked = Array.from(list ?? []);
+    if (picked.length) onfiles(picked);
   }
   const size = (n: number) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.ceil(n / 1e3)} KB`);
 </script>
@@ -16,21 +16,23 @@
   class:dragging
   role="button"
   tabindex="0"
-  aria-label="Choose an audio or video file"
+  aria-label="Choose audio or video files"
   ondragover={(e) => { e.preventDefault(); dragging = true; }}
   ondragleave={() => (dragging = false)}
   ondrop={(e) => { e.preventDefault(); dragging = false; if (!disabled) pick(e.dataTransfer?.files); }}
   onclick={() => !disabled && input.click()}
   onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), !disabled && input.click())}
 >
-  {#if file}
-    <p><strong>{file.name}</strong> · {size(file.size)}</p>
-    <p class="sub">Click or drop to choose a different file</p>
+  {#if files.length}
+    {#each files as f (f.name + f.size + f.lastModified)}
+      <p><strong>{f.name}</strong> · {size(f.size)}</p>
+    {/each}
+    <p class="sub">Click or drop to choose different files. They run one after another.</p>
   {:else}
-    <p><strong>Drop an audio or video file here</strong>, or click to browse</p>
+    <p><strong>Drop audio or video files here</strong>, or click to browse</p>
     <p class="sub">mp3, wav, m4a, ogg, webm, mp4, mov — anything your browser can play. The file stays on your device.</p>
   {/if}
-  <input bind:this={input} data-testid="file-input" type="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.ogg,.webm,.mp4,.mov" hidden onchange={(e) => pick(e.currentTarget.files)} />
+  <input bind:this={input} data-testid="file-input" type="file" multiple accept="audio/*,video/*,.m4a,.mp3,.wav,.ogg,.webm,.mp4,.mov" hidden onchange={(e) => pick(e.currentTarget.files)} />
 </div>
 
 <style>

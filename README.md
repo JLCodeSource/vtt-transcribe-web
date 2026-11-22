@@ -15,12 +15,24 @@ Export: SRT, VTT, TXT, JSON. Light/dark/auto theme, mobile-friendly.
 
 ## Privacy claims and how to verify them
 
-* The OpenAI key is held in memory. It is written to `localStorage` **only** if you tick "Remember the key" (and removed when you untick it and transcribe again).
+* The OpenAI key is held in memory. It is written to `localStorage` **only** if you turn on "Remember my OpenAI key on this device" in Settings (unencrypted; anyone using that browser profile can read it). Turning it off removes it.
+* Finished results (transcript segments, speaker turns and names, translation) are saved **only in this browser** (IndexedDB, database `vtt-transcribe`), so they survive a reload. The API key and the audio are not part of a saved result. The audio is kept only if you tick "Also keep the audio file" in Settings (off by default; it is needed only to play speaker samples when reviewing later) and is deleted together with its result. Nothing is uploaded to us: there is no server.
+* Results are kept for the retention you choose: keep until deleted, delete after download, or hold N days (platform default: **7 days**), set as a default in Settings and per result in Jobs. Expired results are deleted when the page loads and every minute while it is open. "Delete all my data" in Settings removes every result, any kept audio, settings, the saved key and the cached on-device models.
+* Preferences (default retention, notification opt-in, keep-audio, theme) are small `localStorage` entries starting with `vtt.`.
+* Notifications are optional browser notifications, requested only when you turn them on; the page must stay open. Nothing is sent anywhere.
 * The key is sent only in the `Authorization` header to `api.openai.com`.
 * On-device mode makes no request carrying your audio; the only external hosts are Hugging Face for model weights.
 * The ONNX Runtime WebAssembly is served from this origin (`/ort/`), not a CDN.
 
 Verify: open DevTools → Network while transcribing (only your origin, `api.openai.com`, and in on-device mode `huggingface.co`/`*.hf.co`). `index.html` also ships a strict Content-Security-Policy `connect-src` allow-list, so the browser itself blocks any other destination; that policy is how we caught transformers.js trying to fetch code from jsdelivr, which is why ORT is self-hosted. The e2e tests assert the host set.
+
+## Queue, Jobs and what is not here
+
+Pick several files and they run **one at a time, first in first out** (the models are heavy in a browser tab; nothing runs concurrently). The Jobs view shows each item's step (download model, transcribe, identify speakers, translate), the percent through the audio where the engine reports one, the queue position of waiting items, and Cancel for waiting or running items. Finished results appear under "Saved in this browser" where you can re-open, review speakers, download or delete them. The tab title shows progress, and an optional notification tells you when a job finishes or fails while the tab is in the background.
+
+Queued items hold their files in memory, so **closing the tab drops anything still waiting or running**; only finished results persist. If the browser refuses to store a result (quota, private mode) the Jobs view says so and keeps it in memory for this tab so you can download it.
+
+Out of scope for a static app with no server: **email notifications, accounts and cross-device history.** Results exist only in the browser that made them, and clearing site data deletes them.
 
 ## Known limits
 
@@ -45,7 +57,7 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-sli
 
 Everything is tested locally in containers. The site is deployed to GitHub Pages by `.github/workflows/pages.yml` on every push to `main`. Note: the `/ort` runtime files include `.wasm` files of about 27-28 MB each; that is under GitHub's 100 MB per-file limit, but a host with a 25 MB per-file limit would not work.
 
-Layout: `src/lib/{openai,local,audio,format,settings,types}.ts` (engines and helpers), `src/components/*`, `e2e/*`.
+Layout: `src/lib/{openai,local,audio,format,settings,types}.ts` (engines and helpers), `src/lib/{queue,store,retention,service,pipeline,notify}.ts` (job queue, IndexedDB store, retention rules, glue), `src/components/*`, `e2e/*`.
 
 ## Translation and speakers
 

@@ -7,7 +7,6 @@
   interface Props {
     engine: EngineChoice;
     apiKey: string;
-    remember: boolean;
     model: string;
     language: string;
     target: string;
@@ -17,7 +16,6 @@
   let {
     engine = $bindable(),
     apiKey = $bindable(),
-    remember = $bindable(),
     model = $bindable(),
     language = $bindable(),
     target = $bindable(),
@@ -90,10 +88,7 @@
         🔒 Your key never leaves your browser except to authenticate with api.openai.com. We have no server; nothing is
         sent to us.
       </p>
-      <label class="check">
-        <input type="checkbox" bind:checked={remember} />
-        Remember the key on this device (stored unencrypted in this browser's local storage)
-      </label>
+      <p class="hint">To keep the key between visits, turn that on under Settings.</p>
     </div>
   {/if}
 

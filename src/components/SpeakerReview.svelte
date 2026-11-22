@@ -16,7 +16,8 @@
     turns: Turn[];
     names: SpeakerNames;
     segments: Segment[];
-    file: File;
+    /** audio for sample playback; absent when it was not kept (see Settings) */
+    audio?: Blob;
     onconfirm: (turns: Turn[], names: SpeakerNames) => void;
     onskip: () => void;
   }
@@ -30,10 +31,10 @@
 
   const ids = $derived(speakerIds(turns));
   // svelte-ignore state_referenced_locally
-  const url = URL.createObjectURL(props.file);
-  let audio: HTMLAudioElement | undefined;
+  const url = props.audio ? URL.createObjectURL(props.audio) : '';
+  let audio = $state<HTMLAudioElement>();
   let stopAt = 0;
-  $effect(() => () => URL.revokeObjectURL(url));
+  $effect(() => () => { if (url) URL.revokeObjectURL(url); });
 
   function play(start: number, end: number) {
     if (!audio) return;
@@ -79,7 +80,11 @@
     that are really the same person, or split one that is two people.
   </p>
   <!-- svelte-ignore a11y_media_has_caption -->
-  <audio bind:this={audio} src={url} ontimeupdate={ontime} preload="metadata"></audio>
+  {#if url}
+    <audio bind:this={audio} src={url} ontimeupdate={ontime} preload="metadata"></audio>
+  {:else}
+    <p class="hint">Sample playback is unavailable because the audio was not kept in this browser (you can change that in Settings). You can still rename, merge and split using the text samples.</p>
+  {/if}
   {#if note}<p class="note" role="status">{note}</p>{/if}
 
   <ul>
@@ -97,7 +102,7 @@
         </div>
         {#if sampleText(id)}<p class="quote">{sampleText(id)}</p>{/if}
         <div class="row actions">
-          {#each sum.samples as s, i (i)}
+          {#each url ? sum.samples : [] as s, i (i)}
             <button type="button" onclick={() => play(s.start, s.end)} aria-label="Play sample {i + 1} of {names[id] || defaultName(id)}">
               ▶ {clockTime(s.start)}
             </button>
