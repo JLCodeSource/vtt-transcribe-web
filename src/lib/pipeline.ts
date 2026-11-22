@@ -17,6 +17,8 @@ export interface JobOptions {
   target: string;
   diarize: boolean;
   speakerCount: string;
+  /** false (default): translate first, speaker review last. true: review speakers, then translate. */
+  reviewFirst?: boolean;
 }
 
 export type Task =
@@ -64,8 +66,9 @@ export async function runTask(task: Task, ctx: RunContext): Promise<Outcome> {
       const t = await diarizer.run(pcm, { speakers: o.speakerCount === 'auto' ? undefined : Number(o.speakerCount), signal, onProgress });
       turns = t.length ? t : null;
     }
-    // With speakers to review, translation is deferred until they are confirmed (see JobService.finishReview).
-    if (!turns && o.target) {
+    // Default: translate now and leave the speaker review for the end. With reviewFirst, translation is deferred
+    // until the speakers are confirmed (see JobService.finishReview).
+    if (o.target && (!turns || !o.reviewFirst)) {
       setStep('Translating');
       const from = o.language === 'auto' && detectedLang ? detectedLang : o.language;
       return { kind: 'process', segments: await translateSegments(segments, o, from, signal, onProgress), turns, ranOn, detectedLang };

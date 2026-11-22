@@ -86,14 +86,14 @@ describe('JobService', () => {
     expect(await svc.sweep()).toEqual([id]);
   });
 
-  it('defers translation until the speakers are reviewed, then queues it', async () => {
+  it('with reviewFirst, defers translation until the speakers are reviewed, then queues it', async () => {
     const turns = [{ start: 0, end: 1, embedding: Float32Array.from([1, 0]), speaker: 0 }];
     const { svc, ran } = make({
       runner: (k) => k === 'process'
         ? { kind: 'process', segments: [{ start: 0, end: 1, text: 'hi' }], turns, ranOn: 'test', detectedLang: 'en' }
         : { kind: 'translate', segments: [{ start: 0, end: 1, text: 'hi', translation: 'hola' }] },
     });
-    svc.submit([file('a.wav')], { ...opts, diarize: true, target: 'es' });
+    svc.submit([file('a.wav')], { ...opts, diarize: true, target: 'es', reviewFirst: true });
     await wait();
     const job = svc.stored[0];
     expect(job.awaitingReview).toBe(true);
@@ -106,6 +106,19 @@ describe('JobService', () => {
     expect(done.translate).toBeNull();
     expect(done.segments[0].translation).toBe('hola');
     expect(done.names).toEqual({ 0: 'Ada' });
+  });
+
+  it('by default nothing is deferred: translation already happened, only the speaker review is left', async () => {
+    const turns = [{ start: 0, end: 1, embedding: Float32Array.from([1, 0]), speaker: 0 }];
+    const { svc, ran } = make({ runner: () => ({ kind: 'process', segments: [{ start: 0, end: 1, text: 'hi', translation: 'hola' }], turns, ranOn: 'test', detectedLang: 'en' }) });
+    svc.submit([file('a.wav')], { ...opts, diarize: true, target: 'es' });
+    await wait();
+    expect(svc.stored[0].awaitingReview).toBe(true);
+    expect(svc.stored[0].translate).toBeNull();
+    await svc.finishReview(svc.stored[0].id, turns, { 0: 'Ada' });
+    await wait();
+    expect(ran).toEqual(['a.wav']); // no second (translate) task
+    expect(svc.stored[0].segments[0].translation).toBe('hola');
   });
 
   it('a storage failure keeps the result in memory with a message instead of losing it', async () => {
