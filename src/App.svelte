@@ -93,6 +93,7 @@
   function submit() {
     if (!canStart) return;
     if (engine === 'openai') (remember ? saveKey(apiKey.trim()) : forgetKey());
+    void navigator.storage?.persist?.().catch(() => {}); // ask the browser not to evict results under pressure
     const options: JobOptions = { engine, apiKey: apiKey.trim(), model, language, target, diarize, speakerCount };
     const items = service.submit(files, options);
     autoOpen = items.length === 1 ? items[0].id : '';
@@ -118,6 +119,21 @@
     notify = v;
     saveNotify(v);
   }
+  let usage = $state('');
+  async function refreshUsage() {
+    try {
+      const e = await navigator.storage.estimate();
+      usage = `Using ${Math.round((e.usage ?? 0) / 1e6)} MB of about ${Math.round((e.quota ?? 0) / 1e6)} MB available to this site.`;
+    } catch {
+      usage = '';
+    }
+  }
+  async function clearModels() {
+    try {
+      await caches?.delete('transformers-cache');
+    } catch { /* no Cache API */ }
+    await refreshUsage();
+  }
   async function deleteAll() {
     try {
       await service.deleteAll();
@@ -141,6 +157,7 @@
   function go(v: View) {
     deleted = false;
     view = v;
+    if (v === 'settings') void refreshUsage();
   }
 </script>
 
@@ -180,6 +197,8 @@
       onnew={() => go('home')}
       oncancel={(id) => service.queue.cancel(id)}
       ondismiss={(id) => service.queue.remove(id)}
+      onretry={(id) => service.queue.retry(id)}
+      canRetry={(i) => i.input.kind === 'translate' || service.files.has(i.input.jobId)}
       onopen={open}
       ondelete={(id) => void service.delete(id)}
       onretention={(id, r) => void service.setRetention(id, r)}
@@ -193,6 +212,8 @@
       {notify}
       {notifyDenied}
       {deleted}
+      {usage}
+      onclearmodels={() => void clearModels()}
       onretention={(r) => ((defaultRetention = r), saveDefaultRetention(r))}
       onremember={setRemember}
       onkeepaudio={(v) => ((keepAudio = v), saveKeepAudio(v))}

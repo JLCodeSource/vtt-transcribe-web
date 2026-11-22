@@ -15,6 +15,8 @@
     onnotify: (v: boolean) => void;
     ondeleteall: () => void;
     deleted: boolean;
+    usage: string;
+    onclearmodels: () => void;
   }
   const p: Props = $props();
   let confirming = $state(false);
@@ -55,6 +57,12 @@
       {#if !notificationsSupported()}Your browser does not support notifications.{/if}
       {#if p.notifyDenied}Notifications are blocked for this site in your browser settings.{/if}
     </p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Storage</legend>
+    <p class="hint">{p.usage || 'Storage use is not available in this browser.'} This includes results, any kept audio and the downloaded on-device models.</p>
+    <button type="button" onclick={p.onclearmodels}>Clear downloaded models (keeps your results)</button>
   </fieldset>
 
   <fieldset>

@@ -25,6 +25,8 @@ type AsrOutput = { text: string; chunks?: Array<{ text: string; timestamp: [numb
 export type AsrPipeline = ((audio: Float32Array, opts: Record<string, unknown>) => Promise<AsrOutput | AsrOutput[]>) & {
   /** Whisper language ID: one decoder step over the first 30 s, argmax over the language tokens. */
   detectLanguage?: (audio30s: Float32Array) => Promise<string>;
+  /** release the model's memory (WASM heap / GPU buffers) */
+  dispose?: () => Promise<void> | void;
 };
 
 export interface PipelineRequest {
@@ -162,6 +164,18 @@ export class LocalEngine implements Engine {
     }
     options.onProgress?.({ phase: 'transcribe', fraction: 1, message: 'Done' });
     return out;
+  }
+
+  /** Free the model's memory. Long queues otherwise pile up one model per job until the WASM heap is exhausted. */
+  async dispose(): Promise<void> {
+    const asr = this.asr;
+    this.asr = undefined;
+    this.loadedKey = '';
+    try {
+      await (await asr)?.dispose?.();
+    } catch {
+      /* nothing useful to do if freeing fails */
+    }
   }
 
   private async load(model: LocalModel, options: TranscribeOptions): Promise<AsrPipeline> {
