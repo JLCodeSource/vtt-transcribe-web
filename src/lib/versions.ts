@@ -37,6 +37,7 @@ const strip = ({ translation: _t, speaker: _s, ...rest }: Segment): Segment => r
 
 /** Bring any stored record (current or older) to the current shape. Pure; never loses data. */
 export function migrateJob(raw: unknown): StoredJob {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const r = raw as Record<string, any>;
   if (r.schema === SCHEMA) return r as StoredJob;
   const old = (r.segments ?? []) as Segment[];

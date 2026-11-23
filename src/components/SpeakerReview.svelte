@@ -82,7 +82,6 @@
     {ids.length === 1 ? 'speaker' : 'speakers'}. Listen to a sample, give each a name, merge voices that are really the
     same person, or split one that is two people.
   </p>
-  <!-- svelte-ignore a11y_media_has_caption -->
   {#if url}
     <audio bind:this={audio} src={url} ontimeupdate={ontime} preload="metadata"></audio>
   {:else}
