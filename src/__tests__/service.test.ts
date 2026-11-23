@@ -5,11 +5,26 @@ import { JobStore } from '../lib/store';
 import { DAY_MS } from '../lib/retention';
 import type { JobOptions, Outcome } from '../lib/pipeline';
 
-const opts: JobOptions = { engine: 'local', apiKey: 'sk-secret', model: 'base', language: 'en', target: '', diarize: false, speakerCount: 'auto' };
+const opts: JobOptions = {
+  engine: 'local',
+  apiKey: 'sk-secret',
+  model: 'base',
+  language: 'en',
+  target: '',
+  diarize: false,
+  speakerCount: 'auto',
+};
 const file = (n: string) => new File(['x'], n);
 const wait = () => new Promise((r) => setTimeout(r, 80));
 
-function make(o: { idb?: IDBFactory | undefined; clock?: { t: number }; runner?: (kind: string) => Outcome; keepAudio?: boolean } = {}) {
+function make(
+  o: {
+    idb?: IDBFactory | undefined;
+    clock?: { t: number };
+    runner?: (kind: string) => Outcome;
+    keepAudio?: boolean;
+  } = {},
+) {
   const clock = o.clock ?? { t: Date.UTC(2026, 0, 1) };
   const idb = 'idb' in o ? o.idb : new IDBFactory();
   const ran: string[] = [];
@@ -20,7 +35,15 @@ function make(o: { idb?: IDBFactory | undefined; clock?: { t: number }; runner?:
     keepAudio: () => !!o.keepAudio,
     run: async (item) => {
       ran.push(item.name);
-      return o.runner?.(item.input.kind) ?? { kind: 'process', segments: [{ start: 0, end: 1, text: item.name }], turns: null, ranOn: 'test', detectedLang: '' };
+      return (
+        o.runner?.(item.input.kind) ?? {
+          kind: 'process',
+          segments: [{ start: 0, end: 1, text: item.name }],
+          turns: null,
+          ranOn: 'test',
+          detectedLang: '',
+        }
+      );
     },
   });
   return { svc, ran, clock, idb };
@@ -89,9 +112,10 @@ describe('JobService', () => {
   it('with reviewFirst, defers translation until the speakers are reviewed, then queues it', async () => {
     const turns = [{ start: 0, end: 1, embedding: Float32Array.from([1, 0]), speaker: 0 }];
     const { svc, ran } = make({
-      runner: (k) => k === 'process'
-        ? { kind: 'process', segments: [{ start: 0, end: 1, text: 'hi' }], turns, ranOn: 'test', detectedLang: 'en' }
-        : { kind: 'translate', segments: [{ start: 0, end: 1, text: 'hi', translation: 'hola' }] },
+      runner: (k) =>
+        k === 'process'
+          ? { kind: 'process', segments: [{ start: 0, end: 1, text: 'hi' }], turns, ranOn: 'test', detectedLang: 'en' }
+          : { kind: 'translate', segments: [{ start: 0, end: 1, text: 'hi', translation: 'hola' }] },
     });
     svc.submit([file('a.wav')], { ...opts, diarize: true, target: 'es', reviewFirst: true });
     await wait();
@@ -111,7 +135,15 @@ describe('JobService', () => {
 
   it('by default nothing is deferred: translation already happened, only the speaker review is left', async () => {
     const turns = [{ start: 0, end: 1, embedding: Float32Array.from([1, 0]), speaker: 0 }];
-    const { svc, ran } = make({ runner: () => ({ kind: 'process', segments: [{ start: 0, end: 1, text: 'hi', translation: 'hola' }], turns, ranOn: 'test', detectedLang: 'en' }) });
+    const { svc, ran } = make({
+      runner: () => ({
+        kind: 'process',
+        segments: [{ start: 0, end: 1, text: 'hi', translation: 'hola' }],
+        turns,
+        ranOn: 'test',
+        detectedLang: 'en',
+      }),
+    });
     svc.submit([file('a.wav')], { ...opts, diarize: true, target: 'es' });
     await wait();
     expect(svc.stored[0].awaitingReview).toBe(true);

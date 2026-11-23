@@ -1,8 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { DAY_MS, DEFAULT_RETENTION, DOWNLOAD_GRACE_MS, describeRetention, expiryFor, isExpired, normaliseRetention, sweepExpired, type Retained } from '../lib/retention';
+import {
+  DAY_MS,
+  DEFAULT_RETENTION,
+  DOWNLOAD_GRACE_MS,
+  describeRetention,
+  expiryFor,
+  isExpired,
+  normaliseRetention,
+  sweepExpired,
+  type Retained,
+} from '../lib/retention';
 
 const T0 = Date.UTC(2026, 0, 1);
-const job = (id: string, o: Partial<Retained> = {}): Retained => ({ id, retention: { mode: 'days', days: 7 }, expiresAt: T0 + 7 * DAY_MS, downloadedAt: null, ...o });
+const job = (id: string, o: Partial<Retained> = {}): Retained => ({
+  id,
+  retention: { mode: 'days', days: 7 },
+  expiresAt: T0 + 7 * DAY_MS,
+  downloadedAt: null,
+  ...o,
+});
 
 describe('retention', () => {
   it('platform default is a 7 day hold', () => {
@@ -35,7 +51,11 @@ describe('retention', () => {
     ];
     const store = {
       list: async () => [...items],
-      remove: async (id: string) => void items.splice(items.findIndex((i) => i.id === id), 1),
+      remove: async (id: string) =>
+        void items.splice(
+          items.findIndex((i) => i.id === id),
+          1,
+        ),
     };
     expect(await sweepExpired(store, T0)).toEqual([]);
     expect(await sweepExpired(store, T0 + 2 * DAY_MS)).toEqual(['old', 'dl']);
@@ -44,8 +64,28 @@ describe('retention', () => {
   });
 
   it('a failing delete or list does not throw', async () => {
-    expect(await sweepExpired({ list: async () => { throw new Error('x'); }, remove: async () => {} }, T0)).toEqual([]);
-    expect(await sweepExpired({ list: async () => [job('a', { expiresAt: 0 })], remove: async () => { throw new Error('x'); } }, T0)).toEqual([]);
+    expect(
+      await sweepExpired(
+        {
+          list: async () => {
+            throw new Error('x');
+          },
+          remove: async () => {},
+        },
+        T0,
+      ),
+    ).toEqual([]);
+    expect(
+      await sweepExpired(
+        {
+          list: async () => [job('a', { expiresAt: 0 })],
+          remove: async () => {
+            throw new Error('x');
+          },
+        },
+        T0,
+      ),
+    ).toEqual([]);
   });
 
   it('normalises stored values and describes them', () => {

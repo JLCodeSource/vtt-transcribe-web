@@ -34,7 +34,9 @@
   const url = props.audio ? URL.createObjectURL(props.audio) : '';
   let audio = $state<HTMLAudioElement>();
   let stopAt = 0;
-  $effect(() => () => { if (url) URL.revokeObjectURL(url); });
+  $effect(() => () => {
+    if (url) URL.revokeObjectURL(url);
+  });
 
   function play(start: number, end: number) {
     if (!audio) return;
@@ -76,14 +78,17 @@
 <section class="review" aria-label="Review speakers">
   <h2>Who is who?</h2>
   <p class="hint">
-    Found {ids.length} {ids.length === 1 ? 'speaker' : 'speakers'}. Listen to a sample, give each a name, merge voices
-    that are really the same person, or split one that is two people.
+    Found {ids.length}
+    {ids.length === 1 ? 'speaker' : 'speakers'}. Listen to a sample, give each a name, merge voices that are really the
+    same person, or split one that is two people.
   </p>
-  <!-- svelte-ignore a11y_media_has_caption -->
   {#if url}
     <audio bind:this={audio} src={url} ontimeupdate={ontime} preload="metadata"></audio>
   {:else}
-    <p class="hint">Sample playback is unavailable because the audio was not kept in this browser (you can change that in Settings). You can still rename, merge and split using the text samples.</p>
+    <p class="hint">
+      Sample playback is unavailable because the audio was not kept in this browser (you can change that in Settings).
+      You can still rename, merge and split using the text samples.
+    </p>
   {/if}
   {#if note}<p class="note" role="status">{note}</p>{/if}
 
@@ -103,7 +108,11 @@
         {#if sampleText(id)}<p class="quote">{sampleText(id)}</p>{/if}
         <div class="row actions">
           {#each url ? sum.samples : [] as s, i (i)}
-            <button type="button" onclick={() => play(s.start, s.end)} aria-label="Play sample {i + 1} of {names[id] || defaultName(id)}">
+            <button
+              type="button"
+              onclick={() => play(s.start, s.end)}
+              aria-label="Play sample {i + 1} of {names[id] || defaultName(id)}"
+            >
               ▶ {clockTime(s.start)}
             </button>
           {/each}
@@ -129,15 +138,56 @@
 </section>
 
 <style>
-  .review { display: grid; gap: 0.75rem; }
-  h2 { margin: 0; }
-  .hint, .note { margin: 0; color: var(--muted); }
-  .note { color: var(--primary); }
-  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
-  li { padding: 0.8rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; display: grid; gap: 0.5rem; }
-  .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-  .row input { flex: 1 1 12rem; }
-  .meta { color: var(--muted); font-size: 0.9rem; }
-  .quote { margin: 0; font-style: italic; color: var(--muted); }
-  .go { display: flex; gap: 0.75rem; }
+  .review {
+    display: grid;
+    gap: 0.75rem;
+  }
+  h2 {
+    margin: 0;
+  }
+  .hint,
+  .note {
+    margin: 0;
+    color: var(--muted);
+  }
+  .note {
+    color: var(--primary);
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.6rem;
+  }
+  li {
+    padding: 0.8rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: grid;
+    gap: 0.5rem;
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .row input {
+    flex: 1 1 12rem;
+  }
+  .meta {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .quote {
+    margin: 0;
+    font-style: italic;
+    color: var(--muted);
+  }
+  .go {
+    display: flex;
+    gap: 0.75rem;
+  }
 </style>

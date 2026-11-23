@@ -7,7 +7,9 @@ test.setTimeout(300000);
 
 test('works from a sub-path: assets, ONNX runtime and a real transcription', async ({ page }) => {
   const bad: string[] = [];
-  page.on('response', (r) => { if (r.status() >= 400) bad.push(`${r.status()} ${r.url()}`); });
+  page.on('response', (r) => {
+    if (r.status() >= 400) bad.push(`${r.status()} ${r.url()}`);
+  });
   await page.goto('./');
   await page.getByLabel('Model size').selectOption('tiny');
   await page.getByTestId('file-input').setInputFiles(join(process.cwd(), 'e2e/fixtures/hello_conversation.mp3'));
@@ -15,5 +17,12 @@ test('works from a sub-path: assets, ONNX runtime and a real transcription', asy
   await expect(page.getByTestId('ran-on')).toBeVisible({ timeout: 280000 });
   await expect(page.locator('ol')).toContainText(/hello world/i);
   expect(bad).toEqual([]);
-  expect(await page.evaluate(() => performance.getEntriesByType('resource').map((r) => r.name).some((n) => /\/ort\/.*\.wasm/.test(n) && n.includes('/vtt-transcribe-web/ort/')))).toBe(true);
+  expect(
+    await page.evaluate(() =>
+      performance
+        .getEntriesByType('resource')
+        .map((r) => r.name)
+        .some((n) => /\/ort\/.*\.wasm/.test(n) && n.includes('/vtt-transcribe-web/ort/')),
+    ),
+  ).toBe(true);
 });

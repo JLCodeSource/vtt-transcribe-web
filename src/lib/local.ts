@@ -13,9 +13,30 @@ export interface LocalModel {
 }
 
 export const LOCAL_MODELS: LocalModel[] = [
-  { id: 'tiny', label: 'Tiny', hfId: 'onnx-community/whisper-tiny', size: '≈ 40 MB', gpuSize: '≈ 120 MB', note: 'Fastest, roughest. Fine for clear speech.' },
-  { id: 'base', label: 'Base', hfId: 'onnx-community/whisper-base', size: '≈ 80 MB', gpuSize: '≈ 205 MB', note: 'Good balance for clear audio.' },
-  { id: 'small', label: 'Small', hfId: 'onnx-community/whisper-small', size: '≈ 250 MB', gpuSize: '≈ 585 MB', note: 'Noticeably better, much slower.' },
+  {
+    id: 'tiny',
+    label: 'Tiny',
+    hfId: 'onnx-community/whisper-tiny',
+    size: '≈ 40 MB',
+    gpuSize: '≈ 120 MB',
+    note: 'Fastest, roughest. Fine for clear speech.',
+  },
+  {
+    id: 'base',
+    label: 'Base',
+    hfId: 'onnx-community/whisper-base',
+    size: '≈ 80 MB',
+    gpuSize: '≈ 205 MB',
+    note: 'Good balance for clear audio.',
+  },
+  {
+    id: 'small',
+    label: 'Small',
+    hfId: 'onnx-community/whisper-small',
+    size: '≈ 250 MB',
+    gpuSize: '≈ 585 MB',
+    note: 'Noticeably better, much slower.',
+  },
 ];
 
 /** Window fed to Whisper. Whisper itself sees 30 s at a time. */
@@ -78,7 +99,9 @@ export const defaultFactory: PipelineFactory = async ({ hfId, device, onFile }) 
 interface WhisperInternals {
   model: {
     generation_config: { decoder_start_token_id: number; lang_to_id?: Record<string, number> };
-    (inputs: Record<string, unknown>): Promise<{ logits: { dims: number[]; data: ArrayLike<number>; getData?: () => Promise<ArrayLike<number>> } }>;
+    (
+      inputs: Record<string, unknown>,
+    ): Promise<{ logits: { dims: number[]; data: ArrayLike<number>; getData?: () => Promise<ArrayLike<number>> } }>;
   };
   processor: (audio: Float32Array) => Promise<{ input_features: unknown }>;
 }
@@ -186,7 +209,11 @@ export class LocalEngine implements Engine {
     this.loadedKey = key;
     const files = new Map<string, number>();
     const factory = this.cfg.factory ?? globalFactoryOverride() ?? defaultFactory;
-    options.onProgress?.({ phase: 'download', fraction: 0, message: `Loading ${model.label} model (${model.size}, cached after first use)…` });
+    options.onProgress?.({
+      phase: 'download',
+      fraction: 0,
+      message: `Loading ${model.label} model (${model.size}, cached after first use)…`,
+    });
     this.asr = factory({
       hfId: model.hfId,
       device,
@@ -194,7 +221,11 @@ export class LocalEngine implements Engine {
         if (frac != null) files.set(file, frac);
         const vals = [...files.values()];
         const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-        options.onProgress?.({ phase: 'download', fraction: avg, message: `Downloading model… ${avg == null ? '' : Math.round(avg * 100) + '%'}` });
+        options.onProgress?.({
+          phase: 'download',
+          fraction: avg,
+          message: `Downloading model… ${avg == null ? '' : Math.round(avg * 100) + '%'}`,
+        });
       },
     }).catch((e: unknown) => {
       this.asr = undefined;
@@ -203,7 +234,10 @@ export class LocalEngine implements Engine {
         this.cfg.device = 'wasm';
         return this.load(model, options);
       }
-      throw new EngineError(`Could not load the on-device model: ${e instanceof Error ? e.message : String(e)}`, 'engine');
+      throw new EngineError(
+        `Could not load the on-device model: ${e instanceof Error ? e.message : String(e)}`,
+        'engine',
+      );
     });
     return this.asr;
   }

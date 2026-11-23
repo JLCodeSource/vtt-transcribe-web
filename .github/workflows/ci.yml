@@ -1,0 +1,46 @@
+# Cheap gate on every PR and push to main that touches code: type check, lint, format, unit tests, coverage.
+# The Playwright e2e is not run here: it stays manual (./scripts/e2e.sh). workflow_dispatch re-runs this gate.
+name: ci
+on:
+  pull_request:
+    paths: &paths
+      - 'src/**'
+      - 'e2e/**'
+      - 'scripts/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'svelte.config.js'
+      - 'vite.config.ts'
+      - 'vitest.setup.ts'
+      - 'eslint.config.js'
+      - '.prettierrc.json'
+      - '.prettierignore'
+      - '.github/workflows/ci.yml'
+  push:
+    branches: [main]
+    paths: *paths
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run test
+      - run: npm run coverage

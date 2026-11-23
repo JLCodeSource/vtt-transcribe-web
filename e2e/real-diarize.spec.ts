@@ -13,14 +13,18 @@ const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers
 
 test('real speaker models agree with the reference speaker turns', async ({ page }) => {
   const truth = readFileSync(wav!.replace(/\.wav$/, '.rttm'), 'utf8')
-    .trim().split('\n').map((l) => l.split(/\s+/))
+    .trim()
+    .split('\n')
+    .map((l) => l.split(/\s+/))
     .map((f) => ({ start: Number(f[3]), end: Number(f[3]) + Number(f[4]), spk: f[7] }));
   page.on('console', (m) => m.type() === 'error' && console.log('console.error:', m.text()));
   // Transcription is mocked with one segment per reference turn; only the speaker models are real.
   await page.route('https://api.openai.com/**', async (route) => {
     if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     await route.fulfill({
-      status: 200, headers: CORS, contentType: 'application/json',
+      status: 200,
+      headers: CORS,
+      contentType: 'application/json',
       body: JSON.stringify({ segments: truth.map((t, i) => ({ start: t.start, end: t.end, text: `turn ${i}` })) }),
     });
   });
@@ -43,16 +47,22 @@ test('real speaker models agree with the reference speaker turns', async ({ page
   const pred = lines.map((l) => /^(Speaker \d+):/.exec(l)?.[1] ?? '?');
   // best one-to-one agreement between predicted and true labels
   const counts = new Map<string, number>();
-  truth.forEach((t, i) => counts.set(`${pred[i]}|${t.spk}`, (counts.get(`${pred[i]}|${t.spk}`) ?? 0) + (t.end - t.start)));
-  const preds = [...new Set(pred)], trues = [...new Set(truth.map((t) => t.spk))];
+  truth.forEach((t, i) =>
+    counts.set(`${pred[i]}|${t.spk}`, (counts.get(`${pred[i]}|${t.spk}`) ?? 0) + (t.end - t.start)),
+  );
+  const preds = [...new Set(pred)],
+    trues = [...new Set(truth.map((t) => t.spk))];
   let best = 0;
   const perm = (i: number, used: Set<string>, acc: number) => {
     if (i === preds.length) return void (best = Math.max(best, acc));
     perm(i + 1, used, acc);
-    for (const tr of trues) if (!used.has(tr)) perm(i + 1, new Set([...used, tr]), acc + (counts.get(`${preds[i]}|${tr}`) ?? 0));
+    for (const tr of trues)
+      if (!used.has(tr)) perm(i + 1, new Set([...used, tr]), acc + (counts.get(`${preds[i]}|${tr}`) ?? 0));
   };
   perm(0, new Set(), 0);
   const total = truth.reduce((a, t) => a + t.end - t.start, 0);
-  console.log(`speakers predicted=${preds.length} true=${trues.length} agreement=${((100 * best) / total).toFixed(1)}%`);
+  console.log(
+    `speakers predicted=${preds.length} true=${trues.length} agreement=${((100 * best) / total).toFixed(1)}%`,
+  );
   expect(best / total).toBeGreaterThan(0.8);
 });

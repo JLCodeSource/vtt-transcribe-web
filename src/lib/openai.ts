@@ -21,7 +21,10 @@ export interface OpenAIOptions {
 
 /** Test seam: e2e lowers the limits so a tiny file exercises the real decode/chunk path. */
 function limitsOverride(): { maxDirectBytes?: number; chunkSeconds?: number } {
-  return (globalThis as { __VTT_OPENAI_LIMITS__?: { maxDirectBytes?: number; chunkSeconds?: number } }).__VTT_OPENAI_LIMITS__ ?? {};
+  return (
+    (globalThis as { __VTT_OPENAI_LIMITS__?: { maxDirectBytes?: number; chunkSeconds?: number } })
+      .__VTT_OPENAI_LIMITS__ ?? {}
+  );
 }
 
 interface VerboseJson {
@@ -87,10 +90,7 @@ export class OpenAIEngine implements Engine {
       if (options.signal?.aborted) throw new EngineError('Cancelled.', 'aborted');
       // OpenAI omits CORS headers on some error responses (e.g. 401), which browsers report as
       // an opaque network failure. A wrong/expired key is the most common cause.
-      throw new EngineError(
-        'Could not reach OpenAI. Check your connection and that the API key is valid.',
-        'network'
-      );
+      throw new EngineError('Could not reach OpenAI. Check your connection and that the API key is valid.', 'network');
     }
     if (!res.ok) throw await toError(res);
     const body = (await res.json()) as VerboseJson;

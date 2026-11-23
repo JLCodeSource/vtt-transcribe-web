@@ -11,8 +11,21 @@
   import type { Retention } from './lib/retention';
   import type { SpeakerNames, Turn } from './lib/speakers';
   import {
-    applyTheme, clearLocalSettings, forgetKey, loadDefaultRetention, loadKeepAudio, loadNotify, loadReviewFirst, loadSavedKey,
-    loadTheme, saveDefaultRetention, saveKeepAudio, saveKey, saveNotify, saveReviewFirst, type Theme,
+    applyTheme,
+    clearLocalSettings,
+    forgetKey,
+    loadDefaultRetention,
+    loadKeepAudio,
+    loadNotify,
+    loadReviewFirst,
+    loadSavedKey,
+    loadTheme,
+    saveDefaultRetention,
+    saveKeepAudio,
+    saveKey,
+    saveNotify,
+    saveReviewFirst,
+    type Theme,
   } from './lib/settings';
   import { BASE_TITLE, notifyIfHidden, requestNotifications, titleFor } from './lib/notify';
 
@@ -56,7 +69,8 @@
         view = 'result';
       }
       if (item.status === 'done') notifyIfHidden(notify, 'Transcript ready', `${item.name} has finished.`);
-      else if (item.status === 'failed') notifyIfHidden(notify, 'Job failed', `${item.name}: ${item.error ?? 'something went wrong.'}`);
+      else if (item.status === 'failed')
+        notifyIfHidden(notify, 'Job failed', `${item.name}: ${item.error ?? 'something went wrong.'}`);
     },
   });
   const sync = () => {
@@ -67,7 +81,10 @@
   service.onChange(sync);
 
   onMount(() => {
-    void service.migrate().then(() => service.refresh()).then(() => service.sweep());
+    void service
+      .migrate()
+      .then(() => service.refresh())
+      .then(() => service.sweep());
     const t = setInterval(() => void service.sweep(), 60_000);
     return () => clearInterval(t);
   });
@@ -76,8 +93,13 @@
   $effect(() => {
     const running = live.find((i) => i.status === 'running');
     const waiting = live.filter((i) => i.status === 'queued').length;
-    document.title = titleFor(running ? { step: running.step, fraction: running.progress?.fraction ?? null } : null, waiting);
-    return () => { document.title = BASE_TITLE; };
+    document.title = titleFor(
+      running ? { step: running.step, fraction: running.progress?.fraction ?? null } : null,
+      waiting,
+    );
+    return () => {
+      document.title = BASE_TITLE;
+    };
   });
 
   applyTheme(loadTheme());
@@ -89,16 +111,32 @@
   const canStart = $derived(files.length > 0 && (engine === 'local' || apiKey.trim().length > 0));
   const active = $derived(live.filter((i) => i.status === 'queued' || i.status === 'running').length);
   const openJob = $derived(jobs.find((j) => j.id === openId));
-  const translating = $derived(live.find((i) => i.input.kind === 'translate' && i.input.jobId === openId && (i.status === 'queued' || i.status === 'running')));
+  const translating = $derived(
+    live.find(
+      (i) =>
+        i.input.kind === 'translate' && i.input.jobId === openId && (i.status === 'queued' || i.status === 'running'),
+    ),
+  );
 
   /** a translation for the open result that failed: shown to the user, never silent */
-  const translateError = $derived(live.find((i) => i.input.kind === 'translate' && i.input.jobId === openId && i.status === 'failed'));
+  const translateError = $derived(
+    live.find((i) => i.input.kind === 'translate' && i.input.jobId === openId && i.status === 'failed'),
+  );
 
   function submit() {
     if (!canStart) return;
-    if (engine === 'openai') (remember ? saveKey(apiKey.trim()) : forgetKey());
+    if (engine === 'openai') remember ? saveKey(apiKey.trim()) : forgetKey();
     void navigator.storage?.persist?.().catch(() => {}); // ask the browser not to evict results under pressure
-    const options: JobOptions = { engine, apiKey: apiKey.trim(), model, language, target, diarize, speakerCount, reviewFirst };
+    const options: JobOptions = {
+      engine,
+      apiKey: apiKey.trim(),
+      model,
+      language,
+      target,
+      diarize,
+      speakerCount,
+      reviewFirst,
+    };
     const items = service.submit(files, options);
     autoOpen = items.length === 1 ? items[0].id : '';
     files = [];
@@ -135,7 +173,9 @@
   async function clearModels() {
     try {
       await caches?.delete('transformers-cache');
-    } catch { /* no Cache API */ }
+    } catch {
+      /* no Cache API */
+    }
     await refreshUsage();
   }
   async function deleteAll() {
@@ -146,7 +186,9 @@
     }
     try {
       await caches?.delete('transformers-cache');
-    } catch { /* no Cache API */ }
+    } catch {
+      /* no Cache API */
+    }
     clearLocalSettings();
     apiKey = '';
     remember = false;
@@ -174,8 +216,12 @@
     </div>
     <nav aria-label="Main">
       <button type="button" onclick={() => go('home')} aria-current={view === 'home' ? 'page' : undefined}>New</button>
-      <button type="button" onclick={() => go('jobs')} aria-current={view === 'jobs' ? 'page' : undefined}>Jobs{active ? ` (${active})` : ''}</button>
-      <button type="button" onclick={() => go('settings')} aria-current={view === 'settings' ? 'page' : undefined}>Settings</button>
+      <button type="button" onclick={() => go('jobs')} aria-current={view === 'jobs' ? 'page' : undefined}>
+        Jobs{active ? ` (${active})` : ''}
+      </button>
+      <button type="button" onclick={() => go('settings')} aria-current={view === 'settings' ? 'page' : undefined}>
+        Settings
+      </button>
       <button type="button" onclick={cycle} aria-label="Theme: {theme}. Click to change.">
         {theme === 'dark' ? '🌙 Dark' : theme === 'light' ? '☀️ Light' : '🖥 Auto'}
       </button>
@@ -186,7 +232,9 @@
     <EnginePicker bind:engine bind:apiKey bind:model bind:language bind:target bind:diarize bind:speakerCount />
     <Dropzone {files} onfiles={(f) => (files = f)} />
     <div class="go">
-      <button type="button" class="primary" disabled={!canStart} onclick={submit}>{target || diarize ? 'Transcribe & process' : 'Transcribe'}</button>
+      <button type="button" class="primary" disabled={!canStart} onclick={submit}>
+        {target || diarize ? 'Transcribe & process' : 'Transcribe'}
+      </button>
       {#if files.length && engine === 'openai' && !apiKey.trim()}
         <span class="hint">Enter your API key to continue.</span>
       {/if}
@@ -252,26 +300,67 @@
       />
     {/key}
   {:else}
-    <p>That result is no longer here (it may have expired). <button type="button" onclick={() => go('jobs')}>Back to jobs</button></p>
+    <p>
+      That result is no longer here (it may have expired). <button type="button" onclick={() => go('jobs')}>
+        Back to jobs
+      </button>
+    </p>
   {/if}
 
   <footer>
     <p>
       Privacy: this page has no backend. In OpenAI mode your audio and key go only to api.openai.com. In on-device mode
-      nothing is uploaded. Finished transcripts are saved only in this browser (see Settings to choose how long, or delete
-      everything). See the README to verify.
+      nothing is uploaded. Finished transcripts are saved only in this browser (see Settings to choose how long, or
+      delete everything). See the README to verify.
     </p>
   </footer>
 </main>
 
 <style>
-  main { max-width: 760px; margin: 0 auto; padding: 1rem 16px 3rem; display: grid; gap: 1rem; }
-  .top { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
-  nav { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-  nav [aria-current='page'] { border-color: var(--primary); }
-  h1 { margin: 0; font-size: 1.6rem; }
-  .tag { margin: 0; color: var(--muted); }
-  .go { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
-  .hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
-  footer { color: var(--muted); font-size: 0.85rem; margin-top: 1rem; }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 1rem 16px 3rem;
+    display: grid;
+    gap: 1rem;
+  }
+  .top {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  nav {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  nav [aria-current='page'] {
+    border-color: var(--primary);
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.6rem;
+  }
+  .tag {
+    margin: 0;
+    color: var(--muted);
+  }
+  .go {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+  footer {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 1rem;
+  }
 </style>

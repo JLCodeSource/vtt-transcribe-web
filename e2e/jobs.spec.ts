@@ -4,10 +4,18 @@ import { expect, test, type Page } from '@playwright/test';
 function wav(): Buffer {
   const n = 16000;
   const b = Buffer.alloc(44 + n * 2);
-  b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVEfmt ', 8);
-  b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
-  b.writeUInt32LE(16000, 24); b.writeUInt32LE(32000, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34);
-  b.write('data', 36); b.writeUInt32LE(n * 2, 40);
+  b.write('RIFF', 0);
+  b.writeUInt32LE(36 + n * 2, 4);
+  b.write('WAVEfmt ', 8);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(16000, 24);
+  b.writeUInt32LE(32000, 28);
+  b.writeUInt16LE(2, 32);
+  b.writeUInt16LE(16, 34);
+  b.write('data', 36);
+  b.writeUInt32LE(n * 2, 40);
   return b;
 }
 const files = (...names: string[]) => names.map((name) => ({ name, mimeType: 'audio/wav', buffer: wav() }));
@@ -19,10 +27,14 @@ const files = (...names: string[]) => names.map((name) => ({ name, mimeType: 'au
 async function stubModel(page: Page) {
   await page.addInitScript(() => {
     const w = globalThis as any;
-    w.__active = 0; w.__max = 0; w.__started = 0; w.__release = [];
+    w.__active = 0;
+    w.__max = 0;
+    w.__started = 0;
+    w.__release = [];
     w.__VTT_PIPELINE_FACTORY__ = async () => async () => {
       const n = ++w.__started;
-      w.__active++; w.__max = Math.max(w.__max, w.__active);
+      w.__active++;
+      w.__max = Math.max(w.__max, w.__active);
       await new Promise<void>((r) => w.__release.push(r));
       w.__active--;
       return { text: `words ${n}`, chunks: [{ text: ` words ${n}`, timestamp: [0, 1] }] };
@@ -35,7 +47,9 @@ const release = async (page: Page) => {
 };
 const started = (page: Page) => page.evaluate(() => (globalThis as any).__started as number);
 
-test('queue: several files run one at a time in order, with position, cancel and progress in the title', async ({ page }) => {
+test('queue: several files run one at a time in order, with position, cancel and progress in the title', async ({
+  page,
+}) => {
   await stubModel(page);
   await page.goto('/');
   await page.getByTestId('file-input').setInputFiles(files('one.wav', 'two.wav', 'three.wav'));
@@ -69,7 +83,9 @@ test('queue: several files run one at a time in order, with position, cancel and
   await expect(page.getByTestId('file-input')).toBeAttached();
 });
 
-test('results are held in this browser: survive a reload, can be re-opened and downloaded, retention can be changed', async ({ page }) => {
+test('results are held in this browser: survive a reload, can be re-opened and downloaded, retention can be changed', async ({
+  page,
+}) => {
   await stubModel(page);
   await page.goto('/');
   await page.getByTestId('file-input').setInputFiles(files('a.wav', 'b.wav'));
@@ -94,15 +110,24 @@ test('results are held in this browser: survive a reload, can be re-opened and d
   // re-open and download
   await first.getByRole('button', { name: 'Open' }).click();
   await expect(page.getByText('words 1')).toBeVisible();
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'TXT', exact: true }).click()]);
+  const [dl] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'TXT', exact: true }).click(),
+  ]);
   expect(dl.suggestedFilename()).toBe('a.txt');
   await page.getByRole('button', { name: 'Back to jobs' }).click();
 
   // no audio is stored unless the user opted in
-  const hasAudio = await page.evaluate(() => new Promise<number>((res) => {
-    const r = indexedDB.open('vtt-transcribe');
-    r.onsuccess = () => { const q = r.result.transaction('audio').objectStore('audio').count(); q.onsuccess = () => res(q.result); };
-  }));
+  const hasAudio = await page.evaluate(
+    () =>
+      new Promise<number>((res) => {
+        const r = indexedDB.open('vtt-transcribe');
+        r.onsuccess = () => {
+          const q = r.result.transaction('audio').objectStore('audio').count();
+          q.onsuccess = () => res(q.result);
+        };
+      }),
+  );
   expect(hasAudio).toBe(0);
 
   await page.getByRole('button', { name: 'Delete b.wav' }).click();
@@ -119,24 +144,31 @@ test('retention sweep on load removes expired results only', async ({ page }) =>
   await expect(page.getByTestId('saved-jobs').locator('li')).toHaveCount(2);
 
   // age one result past its expiry directly in the database, as if time had passed
-  await page.evaluate(() => new Promise<void>((res) => {
-    const r = indexedDB.open('vtt-transcribe');
-    r.onsuccess = () => {
-      const tx = r.result.transaction('jobs', 'readwrite');
-      const st = tx.objectStore('jobs');
-      st.getAll().onsuccess = (e) => {
-        for (const j of (e.target as IDBRequest).result) if (j.name === 'old.wav') st.put({ ...j, expiresAt: Date.now() - 1000 });
-      };
-      tx.oncomplete = () => res();
-    };
-  }));
+  await page.evaluate(
+    () =>
+      new Promise<void>((res) => {
+        const r = indexedDB.open('vtt-transcribe');
+        r.onsuccess = () => {
+          const tx = r.result.transaction('jobs', 'readwrite');
+          const st = tx.objectStore('jobs');
+          st.getAll().onsuccess = (e) => {
+            for (const j of (e.target as IDBRequest).result)
+              if (j.name === 'old.wav') st.put({ ...j, expiresAt: Date.now() - 1000 });
+          };
+          tx.oncomplete = () => res();
+        };
+      }),
+  );
   await page.reload();
   await page.getByRole('button', { name: 'Jobs' }).click();
   await expect(page.getByTestId('saved-jobs').locator('li')).toHaveCount(1);
   await expect(page.getByTestId('saved-jobs')).toContainText('keepme.wav');
 });
 
-test('settings: default retention, key wording, notification opt-in, and Delete all my data', async ({ page, context }) => {
+test('settings: default retention, key wording, notification opt-in, and Delete all my data', async ({
+  page,
+  context,
+}) => {
   await stubModel(page);
   await context.grantPermissions(['notifications']).catch(() => {});
   await page.goto('/');
@@ -151,7 +183,11 @@ test('settings: default retention, key wording, notification opt-in, and Delete 
   await release(page);
   await expect(page.getByText('words 1')).toBeVisible(); // a lone file opens by itself
   await page.getByRole('button', { name: 'Back to jobs' }).click();
-  const when = new Date(Date.now() + 14 * 86400000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const when = new Date(Date.now() + 14 * 86400000).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
   await expect(page.getByTestId('saved-jobs')).toContainText(`Expires on ${when}`);
 
   await page.getByRole('button', { name: 'Settings' }).click();

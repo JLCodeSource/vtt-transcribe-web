@@ -24,7 +24,7 @@ describe('formatters', () => {
   });
   it('toSrt numbers cues and trims/joins text', () => {
     expect(toSrt(segs)).toBe(
-      '1\n00:00:00,000 --> 00:00:02,500\nHello world\n\n2\n01:01:01,007 --> 01:01:02,000\nLine one line two\n'
+      '1\n00:00:00,000 --> 00:00:02,500\nHello world\n\n2\n01:01:01,007 --> 01:01:02,000\nLine one line two\n',
     );
   });
   it('toVtt has header', () => {

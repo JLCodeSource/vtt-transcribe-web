@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { LocalTranslator, OpenAITranslator, parseBatch } from '../lib/translate';
 import { toSrt, toTxt, view } from '../lib/format';
 
-const segs = [{ start: 0, end: 1, text: 'Hello' }, { start: 1, end: 2, text: 'Goodbye' }];
+const segs = [
+  { start: 0, end: 1, text: 'Hello' },
+  { start: 1, end: 2, text: 'Goodbye' },
+];
 
 describe('parseBatch', () => {
   it('parses numbered lines and wrapped text', () => {
@@ -23,11 +26,15 @@ describe('OpenAITranslator', () => {
     expect(body.messages[0].content).toContain('Spanish');
   });
   it('falls back to the original line when the model drops one', async () => {
-    const out = await new OpenAITranslator({ apiKey: 'k', fetchImpl: reply('LINE_0: Hola') }).translate(segs, { to: 'es' });
+    const out = await new OpenAITranslator({ apiKey: 'k', fetchImpl: reply('LINE_0: Hola') }).translate(segs, {
+      to: 'es',
+    });
     expect(out).toEqual(['Hola', 'Goodbye']);
   });
   it('reports a bad key', async () => {
-    await expect(new OpenAITranslator({ apiKey: 'k', fetchImpl: reply('', 401) }).translate(segs, { to: 'es' })).rejects.toMatchObject({ kind: 'auth' });
+    await expect(
+      new OpenAITranslator({ apiKey: 'k', fetchImpl: reply('', 401) }).translate(segs, { to: 'es' }),
+    ).rejects.toMatchObject({ kind: 'auth' });
   });
 });
 
@@ -43,7 +50,9 @@ describe('LocalTranslator', () => {
     expect(pairs).toEqual(['en-fr', 'de-en']);
   });
   it('explains a missing pair', async () => {
-    const t = new LocalTranslator(async () => { throw new Error('404'); });
+    const t = new LocalTranslator(async () => {
+      throw new Error('404');
+    });
     await expect(t.translate(segs, { from: 'en', to: 'ja' })).rejects.toThrow(/OpenAI mode/);
   });
 });

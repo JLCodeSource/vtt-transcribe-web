@@ -1,8 +1,5 @@
 /** Browser-local retention rules. Pure functions: the clock is always passed in so tests can control it. */
-export type Retention =
-  | { mode: 'keep' }
-  | { mode: 'afterDownload' }
-  | { mode: 'days'; days: number };
+export type Retention = { mode: 'keep' } | { mode: 'afterDownload' } | { mode: 'days'; days: number };
 
 export const DAY_MS = 86_400_000;
 /** Platform default, same as the server product: hold a result for 7 days. */
@@ -24,7 +21,15 @@ export function normaliseRetention(r: unknown): Retention {
   if (o?.mode === 'afterDownload') return { mode: 'afterDownload' };
   if (o?.mode === 'days') {
     const d = Math.floor(Number(o.days));
-    return { mode: 'days', days: Number.isFinite(d) && d >= 1 ? Math.min(d, 3650) : DEFAULT_RETENTION.mode === 'days' ? DEFAULT_RETENTION.days : 7 };
+    return {
+      mode: 'days',
+      days:
+        Number.isFinite(d) && d >= 1
+          ? Math.min(d, 3650)
+          : DEFAULT_RETENTION.mode === 'days'
+            ? DEFAULT_RETENTION.days
+            : 7,
+    };
   }
   return DEFAULT_RETENTION;
 }
@@ -42,8 +47,11 @@ export function isExpired(j: Retained, now: number): boolean {
 
 export function describeRetention(j: Retained): string {
   if (j.retention.mode === 'keep') return 'Kept until you delete it';
-  if (j.retention.mode === 'afterDownload') return j.downloadedAt ? 'Deleted shortly after your download' : 'Deleted after you download it';
-  return j.expiresAt != null ? `Expires on ${new Date(j.expiresAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}` : 'Expiry unknown';
+  if (j.retention.mode === 'afterDownload')
+    return j.downloadedAt ? 'Deleted shortly after your download' : 'Deleted after you download it';
+  return j.expiresAt != null
+    ? `Expires on ${new Date(j.expiresAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`
+    : 'Expiry unknown';
 }
 
 export interface Sweepable {

@@ -1,4 +1,6 @@
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 :root {
   --bg: #f6f7fb;
@@ -16,14 +18,32 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #11141c; --surface: #1a1f2b; --text: #e8ebf3; --muted: #9aa3b8; --border: #303749;
-    --primary: #8b86ff; --primary-text: #11141c; --ok: #4fd49a; --err-bg: #3a1a1d; --err: #ff9a9a; --info-bg: #222a44;
+    --bg: #11141c;
+    --surface: #1a1f2b;
+    --text: #e8ebf3;
+    --muted: #9aa3b8;
+    --border: #303749;
+    --primary: #8b86ff;
+    --primary-text: #11141c;
+    --ok: #4fd49a;
+    --err-bg: #3a1a1d;
+    --err: #ff9a9a;
+    --info-bg: #222a44;
     color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-  --bg: #11141c; --surface: #1a1f2b; --text: #e8ebf3; --muted: #9aa3b8; --border: #303749;
-  --primary: #8b86ff; --primary-text: #11141c; --ok: #4fd49a; --err-bg: #3a1a1d; --err: #ff9a9a; --info-bg: #222a44;
+  --bg: #11141c;
+  --surface: #1a1f2b;
+  --text: #e8ebf3;
+  --muted: #9aa3b8;
+  --border: #303749;
+  --primary: #8b86ff;
+  --primary-text: #11141c;
+  --ok: #4fd49a;
+  --err-bg: #3a1a1d;
+  --err: #ff9a9a;
+  --info-bg: #222a44;
   color-scheme: dark;
 }
 
@@ -31,18 +51,50 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font:
+    16px/1.5 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
 }
 
-button, input, select { font: inherit; color: inherit; }
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
 button {
-  cursor: pointer; border: 1px solid var(--border); background: var(--surface);
-  border-radius: 8px; padding: 0.55rem 1rem; min-height: 44px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  min-height: 44px;
 }
-button.primary { background: var(--primary); color: var(--primary-text); border-color: var(--primary); font-weight: 600; }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-input[type='text'], input[type='password'], input[type='search'], select {
-  width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--surface); min-height: 44px;
+button.primary {
+  background: var(--primary);
+  color: var(--primary-text);
+  border-color: var(--primary);
+  font-weight: 600;
 }
-:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+input[type='text'],
+input[type='password'],
+input[type='search'],
+select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  min-height: 44px;
+}
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}

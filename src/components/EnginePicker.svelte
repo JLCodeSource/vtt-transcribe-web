@@ -34,7 +34,10 @@
   <div class="card active default">
     <span>
       <strong>On this device (default) — no key, no upload</strong>
-      <small>Whisper runs inside your browser. Your audio never leaves your computer. Free, but slower and less accurate than OpenAI.</small>
+      <small>
+        Whisper runs inside your browser. Your audio never leaves your computer. Free, but slower and less accurate than
+        OpenAI.
+      </small>
     </span>
   </div>
 
@@ -76,14 +79,7 @@
   {#if engine === 'openai'}
     <div class="panel">
       <label for="key">Your OpenAI API key</label>
-      <input
-        id="key"
-        type="password"
-        autocomplete="off"
-        spellcheck="false"
-        placeholder="sk-…"
-        bind:value={apiKey}
-      />
+      <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" bind:value={apiKey} />
       <p class="hint">
         🔒 Your key never leaves your browser except to authenticate with api.openai.com. We have no server; nothing is
         sent to us.
@@ -97,7 +93,10 @@
     {#each LANGS as [code, name] (code)}<option value={code}>{name}</option>{/each}
   </select>
   {#if engine === 'local' && language === 'auto'}
-    <p class="hint">The language is detected from the first 30 seconds of audio. Pick it yourself if the recording starts with silence or music.</p>
+    <p class="hint">
+      The language is detected from the first 30 seconds of audio. Pick it yourself if the recording starts with silence
+      or music.
+    </p>
   {/if}
 
   <label for="target" class="lang">Translate the transcript into</label>
@@ -129,19 +128,65 @@
 </fieldset>
 
 <style>
-  fieldset { border: 0; padding: 0; margin: 0 0 1.25rem; display: grid; gap: 0.6rem; }
-  legend { font-weight: 600; margin-bottom: 0.5rem; padding: 0; }
-  .card {
-    display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.85rem 1rem;
-    border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer;
+  fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0 0 1.25rem;
+    display: grid;
+    gap: 0.6rem;
   }
-  .card.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
-  .default { cursor: default; }
-  .optin { align-items: flex-start; padding: 0.6rem 0.25rem; color: var(--text); }
-  .optin small { display: block; color: var(--muted); }
-  .card small { display: block; color: var(--muted); }
-  .panel { padding: 0.25rem 0.25rem 0.5rem 1rem; display: grid; gap: 0.4rem; }
-  .hint { margin: 0; color: var(--muted); font-size: 0.9rem; }
-  .check { display: flex; gap: 0.5rem; font-size: 0.9rem; color: var(--muted); }
-  .lang { margin-top: 0.5rem; }
+  legend {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    padding: 0;
+  }
+  .card {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    cursor: pointer;
+  }
+  .card.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 1px var(--primary);
+  }
+  .default {
+    cursor: default;
+  }
+  .optin {
+    align-items: flex-start;
+    padding: 0.6rem 0.25rem;
+    color: var(--text);
+  }
+  .optin small {
+    display: block;
+    color: var(--muted);
+  }
+  .card small {
+    display: block;
+    color: var(--muted);
+  }
+  .panel {
+    padding: 0.25rem 0.25rem 0.5rem 1rem;
+    display: grid;
+    gap: 0.4rem;
+  }
+  .hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .check {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .lang {
+    margin-top: 0.5rem;
+  }
 </style>

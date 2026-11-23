@@ -4,8 +4,19 @@ import { JobStore, type StoredJob } from '../lib/store';
 import { JobService } from '../lib/service';
 import { toSrt, toTxt } from '../lib/format';
 import {
-  SCHEMA, UNKNOWN_LANG, activeVersion, addDiarization, addTranslation, deleteVersion, migrateJob, recluster, removeTranslation,
-  renameVersion, render, setActive, updateActive,
+  SCHEMA,
+  UNKNOWN_LANG,
+  activeVersion,
+  addDiarization,
+  addTranslation,
+  deleteVersion,
+  migrateJob,
+  recluster,
+  removeTranslation,
+  renameVersion,
+  render,
+  setActive,
+  updateActive,
 } from '../lib/versions';
 import { mergeSpeakers, speakerIds, type Turn } from '../lib/speakers';
 
@@ -18,10 +29,23 @@ const turns: Turn[] = [
   { start: 3, end: 4, embedding: emb(-1, 0), speaker: 3 },
 ];
 const base = (): StoredJob => ({
-  id: 'a', name: 'a.wav', completedAt: 1, schema: SCHEMA, sourceLang: 'en', engine: 'local',
+  id: 'a',
+  name: 'a.wav',
+  completedAt: 1,
+  schema: SCHEMA,
+  sourceLang: 'en',
+  engine: 'local',
   segments: [0, 1, 2, 3].map((i) => ({ start: i, end: i + 1, text: `t${i}` })),
-  translations: {}, diarizations: [], activeDiarization: null, awaitingReview: false, translate: null, ranOn: 'x',
-  retention: { mode: 'keep' }, expiresAt: null, downloadedAt: null, hasAudio: false,
+  translations: {},
+  diarizations: [],
+  activeDiarization: null,
+  awaitingReview: false,
+  translate: null,
+  ranOn: 'x',
+  retention: { mode: 'keep' },
+  expiresAt: null,
+  downloadedAt: null,
+  hasAudio: false,
 });
 
 describe('translations', () => {
@@ -92,15 +116,30 @@ describe('render and exports', () => {
 
 describe('migration', () => {
   const old = {
-    id: 'o', name: 'o.wav', completedAt: 10, awaitingReview: false, translate: null, ranOn: 'by OpenAI',
-    segments: [{ start: 0, end: 1, text: 'hello', translation: 'hola' }, { start: 1, end: 2, text: 'bye', translation: 'adios' }],
-    turns, names: { 0: 'Ada' },
-    retention: { mode: 'days', days: 7 }, expiresAt: 99, downloadedAt: null, hasAudio: false,
+    id: 'o',
+    name: 'o.wav',
+    completedAt: 10,
+    awaitingReview: false,
+    translate: null,
+    ranOn: 'by OpenAI',
+    segments: [
+      { start: 0, end: 1, text: 'hello', translation: 'hola' },
+      { start: 1, end: 2, text: 'bye', translation: 'adios' },
+    ],
+    turns,
+    names: { 0: 'Ada' },
+    retention: { mode: 'days', days: 7 },
+    expiresAt: 99,
+    downloadedAt: null,
+    hasAudio: false,
   };
   it('old translation becomes one entry, old speaker state becomes version 1, the original is restored', () => {
     const j = migrateJob(old);
     expect(j.schema).toBe(SCHEMA);
-    expect(j.segments).toEqual([{ start: 0, end: 1, text: 'hello' }, { start: 1, end: 2, text: 'bye' }]);
+    expect(j.segments).toEqual([
+      { start: 0, end: 1, text: 'hello' },
+      { start: 1, end: 2, text: 'bye' },
+    ]);
     expect(j.translations[UNKNOWN_LANG].texts).toEqual(['hola', 'adios']);
     expect(j.diarizations).toHaveLength(1);
     expect(j.diarizations[0]).toMatchObject({ id: 'v1', names: { 0: 'Ada' } });
@@ -121,10 +160,17 @@ describe('migration', () => {
     // write an old-shape record directly
     const db = await new Promise<IDBDatabase>((res) => {
       const r = idb.open('vtt-transcribe', 1);
-      r.onupgradeneeded = () => { r.result.createObjectStore('jobs', { keyPath: 'id' }); r.result.createObjectStore('audio'); };
+      r.onupgradeneeded = () => {
+        r.result.createObjectStore('jobs', { keyPath: 'id' });
+        r.result.createObjectStore('audio');
+      };
       r.onsuccess = () => res(r.result);
     });
-    await new Promise<void>((res) => { const t = db.transaction('jobs', 'readwrite'); t.objectStore('jobs').put(old); t.oncomplete = () => res(); });
+    await new Promise<void>((res) => {
+      const t = db.transaction('jobs', 'readwrite');
+      t.objectStore('jobs').put(old);
+      t.oncomplete = () => res();
+    });
     db.close();
     const s = new JobStore(idb);
     expect((await s.get('o'))!.translations[UNKNOWN_LANG]).toBeDefined();
@@ -140,15 +186,41 @@ describe('JobService version operations', () => {
   const make = () => {
     const idb = new IDBFactory();
     const svc = new JobService({
-      store: new JobStore(idb), defaultRetention: () => ({ mode: 'keep' }), keepAudio: () => false,
-      run: async (item) => item.input.kind === 'translate'
-        ? { kind: 'translate', segments: item.input.segments.map((s) => ({ ...s, translation: `[${item.input.options.target}] ${s.text}` })) }
-        : { kind: 'process', segments: [{ start: 0, end: 1, text: 'hi' }, { start: 1, end: 2, text: 'yo' }], turns: turns.slice(0, 2), ranOn: 'test', detectedLang: 'en' },
+      store: new JobStore(idb),
+      defaultRetention: () => ({ mode: 'keep' }),
+      keepAudio: () => false,
+      run: async (item) =>
+        item.input.kind === 'translate'
+          ? {
+              kind: 'translate',
+              segments: item.input.segments.map((s) => ({
+                ...s,
+                translation: `[${item.input.options.target}] ${s.text}`,
+              })),
+            }
+          : {
+              kind: 'process',
+              segments: [
+                { start: 0, end: 1, text: 'hi' },
+                { start: 1, end: 2, text: 'yo' },
+              ],
+              turns: turns.slice(0, 2),
+              ranOn: 'test',
+              detectedLang: 'en',
+            },
     });
     return svc;
   };
   const wait = () => new Promise((r) => setTimeout(r, 80));
-  const opts = { engine: 'local', apiKey: '', model: 'base', language: 'en', target: '', diarize: true, speakerCount: 'auto' } as const;
+  const opts = {
+    engine: 'local',
+    apiKey: '',
+    model: 'base',
+    language: 'en',
+    target: '',
+    diarize: true,
+    speakerCount: 'auto',
+  } as const;
 
   it('two languages, re-cluster, merge: everything stays available and survives a reload; retention is per result', async () => {
     const svc = make();
@@ -177,27 +249,49 @@ describe('JobService version operations', () => {
 
 describe('adding a language to a migrated record with no stored source language', () => {
   const oldRecord = {
-    id: 'o', name: 'o.wav', completedAt: 10, awaitingReview: false, translate: null, ranOn: 'on this device',
+    id: 'o',
+    name: 'o.wav',
+    completedAt: 10,
+    awaitingReview: false,
+    translate: null,
+    ranOn: 'on this device',
     segments: [{ start: 0, end: 1, text: 'hello', translation: 'hola' }],
-    turns: null, names: {}, retention: { mode: 'keep' }, expiresAt: null, downloadedAt: null, hasAudio: false,
+    turns: null,
+    names: {},
+    retention: { mode: 'keep' },
+    expiresAt: null,
+    downloadedAt: null,
+    hasAudio: false,
   };
   const make = async () => {
     const idb = new IDBFactory();
     const db = await new Promise<IDBDatabase>((res) => {
       const r = idb.open('vtt-transcribe', 1);
-      r.onupgradeneeded = () => { r.result.createObjectStore('jobs', { keyPath: 'id' }); r.result.createObjectStore('audio'); };
+      r.onupgradeneeded = () => {
+        r.result.createObjectStore('jobs', { keyPath: 'id' });
+        r.result.createObjectStore('audio');
+      };
       r.onsuccess = () => res(r.result);
     });
-    await new Promise<void>((res) => { const t = db.transaction('jobs', 'readwrite'); t.objectStore('jobs').put(oldRecord); t.oncomplete = () => res(); });
+    await new Promise<void>((res) => {
+      const t = db.transaction('jobs', 'readwrite');
+      t.objectStore('jobs').put(oldRecord);
+      t.oncomplete = () => res();
+    });
     db.close();
     const froms: string[] = [];
     const svc = new JobService({
-      store: new JobStore(idb), defaultRetention: () => ({ mode: 'keep' }), keepAudio: () => false,
+      store: new JobStore(idb),
+      defaultRetention: () => ({ mode: 'keep' }),
+      keepAudio: () => false,
       run: async (item) => {
         const t = item.input;
         if (t.kind !== 'translate') throw new Error('unexpected');
         froms.push(t.from);
-        return { kind: 'translate', segments: t.segments.map((s) => ({ ...s, translation: `[${t.from}>${t.options.target}]` })) };
+        return {
+          kind: 'translate',
+          segments: t.segments.map((s) => ({ ...s, translation: `[${t.from}>${t.options.target}]` })),
+        };
       },
     });
     await svc.migrate();

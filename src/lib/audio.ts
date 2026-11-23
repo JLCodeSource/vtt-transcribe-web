@@ -10,7 +10,8 @@ export const TARGET_RATE = 16000;
 export async function decodeToMono16k(blob: Blob): Promise<Float32Array> {
   const bytes = await blob.arrayBuffer();
   const Ctx: typeof AudioContext | undefined =
-    globalThis.AudioContext ?? (globalThis as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    globalThis.AudioContext ??
+    (globalThis as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctx || typeof OfflineAudioContext === 'undefined') {
     throw new EngineError('This browser cannot decode audio (Web Audio API missing).', 'decode');
   }
@@ -21,7 +22,7 @@ export async function decodeToMono16k(blob: Blob): Promise<Float32Array> {
   } catch {
     throw new EngineError(
       'This browser could not decode that file. Try mp3, wav, m4a, ogg or webm/mp4 with an audio track.',
-      'decode'
+      'decode',
     );
   } finally {
     void ctx.close();
@@ -41,7 +42,7 @@ export async function decodeToMono16k(blob: Blob): Promise<Float32Array> {
 export function chunkPcm(
   pcm: Float32Array,
   seconds: number,
-  rate = TARGET_RATE
+  rate = TARGET_RATE,
 ): Array<{ offset: number; samples: Float32Array }> {
   const size = Math.max(1, Math.floor(seconds * rate));
   const out: Array<{ offset: number; samples: Float32Array }> = [];

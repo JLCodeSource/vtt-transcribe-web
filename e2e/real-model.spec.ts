@@ -7,7 +7,10 @@ const model = process.env.REAL_MODEL ?? 'tiny';
 test.setTimeout(600000);
 
 test('real on-device Whisper', async ({ page }) => {
-  page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && console.log('console.error:', m.text()));
+  page.on(
+    'console',
+    (m) => (m.type() === 'error' || m.type() === 'warning') && console.log('console.error:', m.text()),
+  );
   await page.goto('/');
   await page.getByLabel('Model size').selectOption(model!);
   await page.getByTestId('file-input').setInputFiles(join(process.cwd(), 'e2e/fixtures/hello_conversation.mp3'));
@@ -17,7 +20,8 @@ test('real on-device Whisper', async ({ page }) => {
   const err = page.getByRole('alert');
   await expect(done.or(err)).toBeVisible({ timeout: 580000 });
   console.log(`MODEL=${model} total_ms=${Date.now() - t0}`);
-  console.log('ALERT:', await err.allInnerTexts()); console.log('RESULT:', (await page.locator('ol li').allInnerTexts()).join(' | ').replace(/\n/g, ' '));
+  console.log('ALERT:', await err.allInnerTexts());
+  console.log('RESULT:', (await page.locator('ol li').allInnerTexts()).join(' | ').replace(/\n/g, ' '));
   await expect(err).toHaveCount(0);
   await expect(page.locator('ol')).toContainText(/hello world/i);
   await expect(page.getByTestId('ran-on')).toContainText('detected language: English');

@@ -26,14 +26,25 @@ export type Task =
   | { kind: 'translate'; jobId: string; segments: Segment[]; from: string; options: JobOptions };
 
 export type Outcome =
-  | { kind: 'process'; segments: Segment[]; turns: Turn[] | null; ranOn: string; detectedLang: string; warning?: string }
+  | {
+      kind: 'process';
+      segments: Segment[];
+      turns: Turn[] | null;
+      ranOn: string;
+      detectedLang: string;
+      warning?: string;
+    }
   | { kind: 'translate'; segments: Segment[] };
 
 const diarizer = new Diarizer();
 const aborted = (e: unknown) => e instanceof EngineError && e.kind === 'aborted';
 
 export async function translateSegments(
-  segs: Segment[], o: JobOptions, from: string, signal: AbortSignal, onProgress: (p: Progress) => void
+  segs: Segment[],
+  o: JobOptions,
+  from: string,
+  signal: AbortSignal,
+  onProgress: (p: Progress) => void,
 ): Promise<Segment[]> {
   const tr = o.engine === 'openai' ? new OpenAITranslator({ apiKey: o.apiKey }) : new LocalTranslator();
   let out: string[];
@@ -62,10 +73,11 @@ export async function runTask(task: Task, ctx: RunContext): Promise<Outcome> {
   } finally {
     if (eng instanceof LocalEngine) await eng.dispose();
   }
-  const ranOn = eng instanceof LocalEngine
-    ? (eng.device === 'webgpu' ? 'on this device, GPU (WebGPU)' : 'on this device, CPU (WebAssembly)') +
-      (eng.detectedLanguage ? `; detected language: ${languageName(eng.detectedLanguage)}` : '')
-    : 'by OpenAI';
+  const ranOn =
+    eng instanceof LocalEngine
+      ? (eng.device === 'webgpu' ? 'on this device, GPU (WebGPU)' : 'on this device, CPU (WebAssembly)') +
+        (eng.detectedLanguage ? `; detected language: ${languageName(eng.detectedLanguage)}` : '')
+      : 'by OpenAI';
   const detectedLang = eng instanceof LocalEngine ? (eng.detectedLanguage ?? '') : '';
   let turns: Turn[] | null = null;
   let warning: string | undefined;
@@ -76,7 +88,11 @@ export async function runTask(task: Task, ctx: RunContext): Promise<Outcome> {
       const pcm = await decodeToMono16k(task.file);
       let t: Turn[];
       try {
-        t = await diarizer.run(pcm, { speakers: o.speakerCount === 'auto' ? undefined : Number(o.speakerCount), signal, onProgress });
+        t = await diarizer.run(pcm, {
+          speakers: o.speakerCount === 'auto' ? undefined : Number(o.speakerCount),
+          signal,
+          onProgress,
+        });
       } finally {
         await diarizer.dispose();
       }
@@ -87,7 +103,13 @@ export async function runTask(task: Task, ctx: RunContext): Promise<Outcome> {
     if (o.target && (!turns || !o.reviewFirst)) {
       setStep('Translating');
       const from = o.language === 'auto' && detectedLang ? detectedLang : o.language;
-      return { kind: 'process', segments: await translateSegments(segments, o, from, signal, onProgress), turns, ranOn, detectedLang };
+      return {
+        kind: 'process',
+        segments: await translateSegments(segments, o, from, signal, onProgress),
+        turns,
+        ranOn,
+        detectedLang,
+      };
     }
   } catch (e) {
     if (aborted(e) || signal.aborted) throw e;

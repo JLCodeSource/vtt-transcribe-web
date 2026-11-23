@@ -35,7 +35,7 @@ export interface Engine {
 export class EngineError extends Error {
   constructor(
     message: string,
-    readonly kind: 'auth' | 'rate-limit' | 'network' | 'bad-request' | 'decode' | 'aborted' | 'engine' = 'engine'
+    readonly kind: 'auth' | 'rate-limit' | 'network' | 'bad-request' | 'decode' | 'aborted' | 'engine' = 'engine',
   ) {
     super(message);
     this.name = 'EngineError';

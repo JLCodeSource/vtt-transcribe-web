@@ -27,7 +27,8 @@ export function clockTime(seconds: number): string {
 }
 
 const clean = (t: string) => t.trim().replace(/\r?\n+/g, ' ');
-const line = (s: Segment) => (s.speaker ? `${s.speaker}: ${clean(s.text)}` : clean(s.text)) + (s.alt ? `\n${clean(s.alt)}` : '');
+const line = (s: Segment) =>
+  (s.speaker ? `${s.speaker}: ${clean(s.text)}` : clean(s.text)) + (s.alt ? `\n${clean(s.alt)}` : '');
 
 /** The segments as they should read: translated text when chosen, else the original. */
 export function view(segments: Segment[], translated: boolean): Segment[] {
@@ -35,15 +36,11 @@ export function view(segments: Segment[], translated: boolean): Segment[] {
 }
 
 export function toSrt(segments: Segment[]): string {
-  return segments
-    .map((s, i) => `${i + 1}\n${srtTime(s.start)} --> ${srtTime(s.end)}\n${line(s)}\n`)
-    .join('\n');
+  return segments.map((s, i) => `${i + 1}\n${srtTime(s.start)} --> ${srtTime(s.end)}\n${line(s)}\n`).join('\n');
 }
 
 export function toVtt(segments: Segment[]): string {
-  const body = segments
-    .map((s) => `${vttTime(s.start)} --> ${vttTime(s.end)}\n${line(s)}\n`)
-    .join('\n');
+  const body = segments.map((s) => `${vttTime(s.start)} --> ${vttTime(s.end)}\n${line(s)}\n`).join('\n');
   return `WEBVTT\n\n${body}`;
 }
 

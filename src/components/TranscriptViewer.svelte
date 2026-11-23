@@ -14,7 +14,11 @@
     ondownload?: () => void;
     onback?: () => void;
     /** queue a translation of the original into `lang` (adds it, or replaces just that language) */
-    onaddlanguage: (lang: string, engine: 'openai' | 'local', source?: string) => Promise<'queued' | 'needs-source' | 'missing'>;
+    onaddlanguage: (
+      lang: string,
+      engine: 'openai' | 'local',
+      source?: string,
+    ) => Promise<'queued' | 'needs-source' | 'missing'>;
     onrecluster: (count: number) => void;
     onsetversion: (id: string | null) => void;
     onrenameversion: (id: string, name: string) => void;
@@ -40,7 +44,9 @@
   const segments = $derived(render(job, { lang, bilingual: side && !!lang }));
   let query = $state('');
   const shown = $derived(
-    query ? segments.filter((s) => (s.text + ' ' + (s.alt ?? '')).toLowerCase().includes(query.toLowerCase())) : segments
+    query
+      ? segments.filter((s) => (s.text + ' ' + (s.alt ?? '')).toLowerCase().includes(query.toLowerCase()))
+      : segments,
   );
 
   // adding a language
@@ -51,7 +57,10 @@
   let confirmReplace = $state(false);
   const exists = $derived(!!newLang && !!job.translations[newLang]);
   function pickLang(v: string) {
-    if (v === '__add') { adding = true; return; }
+    if (v === '__add') {
+      adding = true;
+      return;
+    }
     lang = v === '' ? null : v;
   }
   // results saved by older releases may not know what language the audio is in
@@ -60,9 +69,15 @@
   const askSource = $derived(needSource || (!job.sourceLang && newEngine === 'local'));
   async function startTranslate() {
     if (!newLang) return;
-    if (exists && !confirmReplace) { confirmReplace = true; return; }
+    if (exists && !confirmReplace) {
+      confirmReplace = true;
+      return;
+    }
     const r = await p.onaddlanguage(newLang, newEngine, source || undefined);
-    if (r === 'needs-source') { needSource = true; return; }
+    if (r === 'needs-source') {
+      needSource = true;
+      return;
+    }
     adding = false;
     confirmReplace = false;
     needSource = false;
@@ -107,7 +122,8 @@
   </header>
 
   <div class="bar">
-    <label>Language
+    <label>
+      Language
       <select aria-label="Language" value={lang ?? ''} onchange={(e) => pickLang(e.currentTarget.value)}>
         <option value="">{origName}</option>
         {#each langs as t (t.lang)}<option value={t.lang}>{langLabel(t.lang)}</option>{/each}
@@ -121,7 +137,8 @@
 
   {#if adding}
     <div class="panel" role="group" aria-label="Add language">
-      <label>Translate into
+      <label>
+        Translate into
         <select aria-label="Translate into" bind:value={newLang} onchange={() => (confirmReplace = false)}>
           <option value="">Choose…</option>
           {#each LANGUAGES.filter(([c]) => c !== job.sourceLang) as [c, n] (c)}
@@ -129,33 +146,49 @@
           {/each}
         </select>
       </label>
-      <label>With
+      <label>
+        With
         <select aria-label="Translation engine" bind:value={newEngine}>
           <option value="local">On this device</option>
           <option value="openai">OpenAI (needs your key)</option>
         </select>
       </label>
       {#if askSource}
-        <label>Audio language
+        <label>
+          Audio language
           <select aria-label="Audio language" bind:value={source}>
             <option value="">Choose…</option>
             {#each LANGUAGES as [c, n] (c)}<option value={c}>{n}</option>{/each}
           </select>
         </label>
-        <span class="hint">This result was saved before the language was recorded. Choose it once; it is remembered.</span>
+        <span class="hint">
+          This result was saved before the language was recorded. Choose it once; it is remembered.
+        </span>
       {/if}
       {#if confirmReplace}
         <span class="hint">Replace the existing {languageName(newLang)} translation? Other languages are kept.</span>
       {/if}
-      <button type="button" class="primary" disabled={!newLang || (askSource && newEngine === 'local' && !source)} onclick={startTranslate}>{confirmReplace ? 'Replace it' : exists ? 'Re-translate' : 'Translate'}</button>
+      <button
+        type="button"
+        class="primary"
+        disabled={!newLang || (askSource && newEngine === 'local' && !source)}
+        onclick={startTranslate}
+      >
+        {confirmReplace ? 'Replace it' : exists ? 'Re-translate' : 'Translate'}
+      </button>
       <button type="button" onclick={() => ((adding = false), (confirmReplace = false))}>Cancel</button>
     </div>
   {/if}
 
   {#if job.diarizations.length}
     <div class="bar" role="group" aria-label="Speaker versions">
-      <label>Speakers
-        <select aria-label="Speaker version" value={job.activeDiarization ?? ''} onchange={(e) => p.onsetversion(e.currentTarget.value || null)}>
+      <label>
+        Speakers
+        <select
+          aria-label="Speaker version"
+          value={job.activeDiarization ?? ''}
+          onchange={(e) => p.onsetversion(e.currentTarget.value || null)}
+        >
           <option value="">No speaker labels</option>
           {#each job.diarizations as v (v.id)}<option value={v.id}>{v.name}</option>{/each}
         </select>
@@ -163,23 +196,52 @@
       {#if version}
         {#if renaming}
           <input type="text" aria-label="New name for this version" bind:value={renameTo} />
-          <button type="button" onclick={() => { p.onrenameversion(version.id, renameTo); renaming = false; }}>Save name</button>
+          <button
+            type="button"
+            onclick={() => {
+              p.onrenameversion(version.id, renameTo);
+              renaming = false;
+            }}
+          >
+            Save name
+          </button>
         {:else}
-          <button type="button" onclick={() => { renameTo = version.name; renaming = true; }}>Rename version</button>
+          <button
+            type="button"
+            onclick={() => {
+              renameTo = version.name;
+              renaming = true;
+            }}
+          >
+            Rename version
+          </button>
         {/if}
-        <button type="button" disabled={job.diarizations.length < 2} title={job.diarizations.length < 2 ? 'The last version cannot be deleted' : ''} onclick={() => p.ondeleteversion(version.id)}>Delete version</button>
+        <button
+          type="button"
+          disabled={job.diarizations.length < 2}
+          title={job.diarizations.length < 2 ? 'The last version cannot be deleted' : ''}
+          onclick={() => p.ondeleteversion(version.id)}
+        >
+          Delete version
+        </button>
       {/if}
-      <label class="n">Re-run with
+      <label class="n">
+        Re-run with
         <input type="number" min="1" max="20" aria-label="Number of speakers" bind:value={clusterN} />
-        speakers</label>
-      <button type="button" onclick={() => p.onrecluster(clusterN)}>Re-run with {clusterN} {clusterN === 1 ? 'speaker' : 'speakers'}</button>
+        speakers
+      </label>
+      <button type="button" onclick={() => p.onrecluster(clusterN)}>
+        Re-run with {clusterN}
+        {clusterN === 1 ? 'speaker' : 'speakers'}
+      </button>
     </div>
   {/if}
 
   <details class="export">
     <summary>Export options</summary>
     <div class="bar">
-      <label>Language
+      <label>
+        Language
         <select aria-label="Export language" bind:value={exLang}>
           <option value="view">As shown</option>
           <option value="orig">{origName}</option>
@@ -187,7 +249,8 @@
         </select>
       </label>
       {#if job.diarizations.length}
-        <label>Speakers
+        <label>
+          Speakers
           <select aria-label="Export speaker version" bind:value={exVer}>
             <option value="view">As shown</option>
             <option value="none">No speaker labels</option>
@@ -196,7 +259,9 @@
         </label>
       {/if}
       {#if langs.length}
-        <label class="check"><input type="checkbox" bind:checked={exBoth} /> Bilingual (original and translation)</label>
+        <label class="check">
+          <input type="checkbox" bind:checked={exBoth} /> Bilingual (original and translation)
+        </label>
       {/if}
     </div>
   </details>
@@ -215,7 +280,10 @@
       {#each shown as s (s.start + '-' + s.end + s.text + (s.speaker ?? ''))}
         <li class:side={s.alt != null}>
           <time>{clockTime(s.start)}</time>
-          <span>{#if s.speaker}<strong class="spk">{s.speaker}:</strong> {/if}{s.text}</span>
+          <span>
+            {#if s.speaker}<strong class="spk">{s.speaker}:</strong>
+            {/if}{s.text}
+          </span>
           {#if s.alt != null}<span class="alt" lang={lang ?? undefined}>{s.alt}</span>{/if}
         </li>
       {/each}
@@ -224,26 +292,105 @@
 </section>
 
 <style>
-  .viewer { display: grid; gap: 0.75rem; }
-  header { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center; }
-  h2 { margin: 0; }
-  .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-  .bar { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; }
-  .bar label { display: inline-flex; gap: 0.4rem; align-items: center; }
-  .n input { width: 4.5rem; }
-  .panel { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; padding: 0.7rem 0.9rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
-  .hint { color: var(--muted); font-size: 0.9rem; }
-  .export summary { cursor: pointer; color: var(--muted); }
-  .count, .empty { margin: 0; color: var(--muted); font-size: 0.9rem; }
-  ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
-  li { display: grid; grid-template-columns: 4.5rem 1fr; gap: 0.75rem; padding: 0.6rem 0.8rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
-  li.side { grid-template-columns: 4.5rem 1fr 1fr; }
-  .alt { color: var(--muted); }
-  @media (max-width: 560px) {
-    li.side { grid-template-columns: 4.5rem 1fr; }
-    li.side .alt { grid-column: 2; }
+  .viewer {
+    display: grid;
+    gap: 0.75rem;
   }
-  .check { display: flex; gap: 0.5rem; font-size: 0.9rem; color: var(--muted); }
-  .spk { color: var(--primary); }
-  time { color: var(--primary); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: space-between;
+    align-items: center;
+  }
+  h2 {
+    margin: 0;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+  }
+  .bar label {
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  .n input {
+    width: 4.5rem;
+  }
+  .panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+    padding: 0.7rem 0.9rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .export summary {
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .count,
+  .empty {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.4rem;
+  }
+  li {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 0.75rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  li.side {
+    grid-template-columns: 4.5rem 1fr 1fr;
+  }
+  .alt {
+    color: var(--muted);
+  }
+  @media (max-width: 560px) {
+    li.side {
+      grid-template-columns: 4.5rem 1fr;
+    }
+    li.side .alt {
+      grid-column: 2;
+    }
+  }
+  .check {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .spk {
+    color: var(--primary);
+  }
+  time {
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9rem;
+  }
 </style>
