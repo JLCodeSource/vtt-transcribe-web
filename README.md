@@ -67,6 +67,9 @@ Out of scope for a static app with no server: **email notifications, accounts an
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npm install
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npx vitest run          # unit tests
 docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-slim npx svelte-check        # types
+./scripts/check.sh                # the full strict gate in a container: npm ci, check, lint, format:check, test
+./scripts/check.sh coverage       # ... plus the v8 coverage report (no threshold yet)
+# Inside the container the same gates are npm scripts: check, lint, format (write) / format:check, test, coverage.
 ./scripts/e2e.sh                  # full e2e suite in a container (builds Dockerfile.e2e once)
 ./scripts/e2e.sh --project=real   # any `playwright test` arguments (real = real Whisper tiny, speaker and translation models; subpath = the GitHub Pages shape)
 # The suite runs on Chromium, Pixel-7 emulation, Firefox, WebKit and branded Chrome (AAC video), plus a 'real'
@@ -75,7 +78,7 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD":/w -w /w node:22-sli
 # the GPU automatically; without one the gpu project simply isn't part of the run.
 ```
 
-Everything is tested locally in containers. The site is deployed to GitHub Pages by `.github/workflows/pages.yml` on every push to `main`. Note: the `/ort` runtime files include `.wasm` files of about 27-28 MB each; that is under GitHub's 100 MB per-file limit, but a host with a 25 MB per-file limit would not work.
+CI (`.github/workflows/ci.yml`) runs check, lint, format:check, test and coverage on pull requests that touch code; the e2e suite stays manual. Everything is tested locally in containers. The site is deployed to GitHub Pages by `.github/workflows/pages.yml` on every push to `main`. Note: the `/ort` runtime files include `.wasm` files of about 27-28 MB each; that is under GitHub's 100 MB per-file limit, but a host with a 25 MB per-file limit would not work.
 
 Layout: `src/lib/{openai,local,audio,format,settings,types}.ts` (engines and helpers), `src/lib/{queue,store,versions,retention,service,pipeline,notify}.ts` (job queue, IndexedDB store, retention rules, glue), `src/components/*`, `e2e/*`.
 

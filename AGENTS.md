@@ -32,20 +32,19 @@ Rules:
 
 ## 3. Checks before every push
 
-Run the full set: formatter, linter with warnings treated as errors, the full test suite. Do not push on red, and do not
-claim a check passes unless you ran it and read the result.
+Run the full set: svelte-check, ESLint (warnings are errors), Prettier check and the full test suite. Do not push on red, and
+do not claim a check passes unless you ran it and read the result.
 
-The host has no node: use containers (see README "Develop and test").
+The host has no node: use containers. One command runs everything (npm ci, `check`, `lint`, `format:check`, `test`):
 
 ```bash
-docker run --rm -v "$PWD":/w -w /w node:22-slim bash -c 'npm ci && npm run check && npm run test'
+./scripts/check.sh            # add `coverage` as an argument to also print the coverage report
 ```
 
-`npm run check` is svelte-check; it must report 0 errors and 0 warnings. Run the Playwright e2e (`npm run test:e2e`, see README
-for the container) whenever you change UI behaviour; real-model projects run when you change models or pipelines.
-
-There is no linter, formatter or coverage tool configured yet (tracked as beads). Until they exist, "formatter + linter" in the
-push rule means: `svelte-check` clean and the existing style of the file you touch.
+`npm run check` is svelte-check; it must report 0 errors and 0 warnings. `npm run format` rewrites files with Prettier; commit
+pure formatting changes on their own. CI (`.github/workflows/ci.yml`) runs the same gates plus coverage on every PR that touches
+code. Coverage has no threshold yet. Run the Playwright e2e (`./scripts/e2e.sh`, see README) whenever you change UI behaviour;
+real-model projects run when you change models or pipelines. E2e is not part of CI.
 
 ### Landing a branch (how every task ends)
 
