@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "predev": "node scripts/copy-ort.mjs",
-    "prebuild": "node scripts/copy-ort.mjs"
+    "prebuild": "node scripts/copy-ort.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.2",
@@ -24,6 +26,8 @@
     "@tsconfig/svelte": "^5.0.8",
     "fake-indexeddb": "^6.2.8",
     "jsdom": "^30.1.3",
+    "prettier": "^3.10.1",
+    "prettier-plugin-svelte": "^4.2.0",
     "svelte-check": "^4.4.6",
     "tslib": "^2.6.0",
     "typescript": "^6.0.3",
