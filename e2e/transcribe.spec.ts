@@ -6,10 +6,18 @@ const FAKE_KEY = 'sk-test-fake-0000';
 function tinyWav(): Buffer {
   const n = 16000;
   const b = Buffer.alloc(44 + n * 2);
-  b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVEfmt ', 8);
-  b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
-  b.writeUInt32LE(16000, 24); b.writeUInt32LE(32000, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34);
-  b.write('data', 36); b.writeUInt32LE(n * 2, 40);
+  b.write('RIFF', 0);
+  b.writeUInt32LE(36 + n * 2, 4);
+  b.write('WAVEfmt ', 8);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(16000, 24);
+  b.writeUInt32LE(32000, 28);
+  b.writeUInt16LE(2, 32);
+  b.writeUInt16LE(16, 34);
+  b.write('data', 36);
+  b.writeUInt32LE(n * 2, 40);
   return b;
 }
 const upload = (page: Page) =>
@@ -25,10 +33,22 @@ async function mockOpenAI(page: Page, status = 200) {
     const body = req.postData() ?? '';
     seen.push({ auth: req.headers()['authorization'], model: /name="model"\r\n\r\n([^\r]+)/.exec(body)?.[1], body });
     if (status !== 200)
-      return route.fulfill({ status, headers: CORS, contentType: 'application/json', body: JSON.stringify({ error: { message: 'nope' } }) });
+      return route.fulfill({
+        status,
+        headers: CORS,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { message: 'nope' } }),
+      });
     await route.fulfill({
-      status: 200, headers: CORS, contentType: 'application/json',
-      body: JSON.stringify({ segments: [{ start: 0, end: 1.5, text: ' Hello there.' }, { start: 1.5, end: 3, text: 'General Kenobi.' }] }),
+      status: 200,
+      headers: CORS,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        segments: [
+          { start: 0, end: 1.5, text: ' Hello there.' },
+          { start: 1.5, end: 3, text: 'General Kenobi.' },
+        ],
+      }),
     });
   });
   return seen;
@@ -38,7 +58,9 @@ test('BYOK: sends audio straight to OpenAI with the key, shows transcript, expor
   const seen = await mockOpenAI(page);
   const hosts = new Set<string>();
   page.on('request', (r) => hosts.add(new URL(r.url()).hostname));
-  page.on('dialog', () => { throw new Error('unexpected alert/confirm dialog'); });
+  page.on('dialog', () => {
+    throw new Error('unexpected alert/confirm dialog');
+  });
 
   await page.goto('/');
   await page.getByLabel(/Use OpenAI instead/).check();
@@ -55,8 +77,16 @@ test('BYOK: sends audio straight to OpenAI with the key, shows transcript, expor
   // Key is not persisted unless the user opts in.
   expect(await page.evaluate(() => JSON.stringify({ ...localStorage }))).not.toContain(FAKE_KEY);
 
-  for (const [fmt, needle] of [['SRT', '00:00:01,500 --> 00:00:03,000'], ['VTT', 'WEBVTT'], ['TXT', 'Hello there.'], ['JSON', '"segments"']]) {
-    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: fmt, exact: true }).click()]);
+  for (const [fmt, needle] of [
+    ['SRT', '00:00:01,500 --> 00:00:03,000'],
+    ['VTT', 'WEBVTT'],
+    ['TXT', 'Hello there.'],
+    ['JSON', '"segments"'],
+  ]) {
+    const [dl] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: fmt, exact: true }).click(),
+    ]);
     expect(dl.suggestedFilename()).toBe(`talk.${fmt.toLowerCase()}`);
     const text = (await import('node:fs')).readFileSync((await dl.path())!, 'utf8');
     expect(text).toContain(needle);
@@ -85,7 +115,9 @@ test('BYOK: key is remembered only when the user opts in', async ({ page }) => {
 
 test('invalid key shows an inline error, not an alert popup', async ({ page }) => {
   await mockOpenAI(page, 401);
-  page.on('dialog', () => { throw new Error('unexpected dialog'); });
+  page.on('dialog', () => {
+    throw new Error('unexpected dialog');
+  });
   await page.goto('/');
   await page.getByLabel(/Use OpenAI instead/).check();
   await page.getByLabel('Your OpenAI API key').fill(FAKE_KEY);
@@ -126,7 +158,10 @@ test('on-device engine (stubbed model) needs no key and makes no network calls',
     };
   });
   const external: string[] = [];
-  page.on('request', (r) => { const h = new URL(r.url()).hostname; if (!['localhost', '127.0.0.1'].includes(h) && r.url().startsWith('http')) external.push(r.url()); });
+  page.on('request', (r) => {
+    const h = new URL(r.url()).hostname;
+    if (!['localhost', '127.0.0.1'].includes(h) && r.url().startsWith('http')) external.push(r.url());
+  });
 
   await page.goto('/');
   await expect(page.getByLabel('Your OpenAI API key')).toHaveCount(0);

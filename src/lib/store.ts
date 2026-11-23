@@ -34,7 +34,10 @@ export interface StoredJob {
 }
 
 export class StoreError extends Error {
-  constructor(message: string, readonly kind: 'quota' | 'unavailable' | 'failed') {
+  constructor(
+    message: string,
+    readonly kind: 'quota' | 'unavailable' | 'failed',
+  ) {
     super(message);
     this.name = 'StoreError';
   }
@@ -47,16 +50,31 @@ const AUDIO = 'audio';
 function fail(e: unknown): StoreError {
   if (e instanceof StoreError) return e;
   const name = (e as { name?: string })?.name;
-  if (name === 'QuotaExceededError') return new StoreError('This browser has no room left to save results. Delete old results or free some space. If it keeps happening although the browser reports free space, clear the site data for this page (DevTools → Application → Storage) and check that no custom storage quota is being simulated.', 'quota');
-  return new StoreError(`Could not use this browser's storage (${name ?? 'Error'}: ${(e as Error)?.message ?? 'unknown error'}).`, 'failed');
+  if (name === 'QuotaExceededError')
+    return new StoreError(
+      'This browser has no room left to save results. Delete old results or free some space. If it keeps happening although the browser reports free space, clear the site data for this page (DevTools → Application → Storage) and check that no custom storage quota is being simulated.',
+      'quota',
+    );
+  return new StoreError(
+    `Could not use this browser's storage (${name ?? 'Error'}: ${(e as Error)?.message ?? 'unknown error'}).`,
+    'failed',
+  );
 }
 
 export class JobStore {
   private db: Promise<IDBDatabase> | null = null;
-  constructor(private readonly factory: IDBFactory | undefined = typeof indexedDB === 'undefined' ? undefined : indexedDB) {}
+  constructor(
+    private readonly factory: IDBFactory | undefined = typeof indexedDB === 'undefined' ? undefined : indexedDB,
+  ) {}
 
   private open(): Promise<IDBDatabase> {
-    if (!this.factory) return Promise.reject(new StoreError('Browser storage is not available here (private mode?). Results will only be kept until you close this tab.', 'unavailable'));
+    if (!this.factory)
+      return Promise.reject(
+        new StoreError(
+          'Browser storage is not available here (private mode?). Results will only be kept until you close this tab.',
+          'unavailable',
+        ),
+      );
     this.db ??= new Promise<IDBDatabase>((resolve, reject) => {
       let req: IDBOpenDBRequest;
       try {
@@ -69,7 +87,13 @@ export class JobStore {
         req.result.createObjectStore(AUDIO);
       };
       req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(new StoreError('Browser storage is not available here (private mode?). Results will only be kept until you close this tab.', 'unavailable'));
+      req.onerror = () =>
+        reject(
+          new StoreError(
+            'Browser storage is not available here (private mode?). Results will only be kept until you close this tab.',
+            'unavailable',
+          ),
+        );
       req.onblocked = () => reject(new StoreError('Browser storage is blocked by another tab.', 'unavailable'));
     }).catch((e) => {
       this.db = null;
@@ -79,7 +103,11 @@ export class JobStore {
   }
 
   /** Run one transaction; resolves with the value `fn` produced once the transaction has committed. */
-  private async tx<T>(stores: string[], write: boolean, fn: (s: IDBObjectStore[], out: (v: T) => void) => void): Promise<T> {
+  private async tx<T>(
+    stores: string[],
+    write: boolean,
+    fn: (s: IDBObjectStore[], out: (v: T) => void) => void,
+  ): Promise<T> {
     const db = await this.open();
     return new Promise<T>((resolve, reject) => {
       let value: T;
@@ -89,7 +117,10 @@ export class JobStore {
         tx.oncomplete = () => resolve(value);
         tx.onerror = () => reject(fail(tx.error));
         tx.onabort = () => reject(fail(tx.error));
-        fn(stores.map((s) => tx.objectStore(s)), (v) => (value = v));
+        fn(
+          stores.map((s) => tx.objectStore(s)),
+          (v) => (value = v),
+        );
       } catch (e) {
         reject(fail(e));
       }

@@ -30,7 +30,8 @@ export interface DiarizationVersion {
   origin: 'auto' | 'recluster' | 'migrated';
 }
 
-export const langLabel = (lang: string) => (lang === UNKNOWN_LANG ? 'Translation (language not recorded)' : languageName(lang));
+export const langLabel = (lang: string) =>
+  lang === UNKNOWN_LANG ? 'Translation (language not recorded)' : languageName(lang);
 
 const strip = ({ translation: _t, speaker: _s, ...rest }: Segment): Segment => rest;
 
@@ -42,11 +43,22 @@ export function migrateJob(raw: unknown): StoredJob {
   const segments = old.map(strip);
   const translations: Record<string, Translation> = {};
   if (old.some((s) => s.translation != null)) {
-    translations[UNKNOWN_LANG] = { lang: UNKNOWN_LANG, texts: old.map((s) => s.translation ?? s.text), createdAt: r.completedAt ?? 0 };
+    translations[UNKNOWN_LANG] = {
+      lang: UNKNOWN_LANG,
+      texts: old.map((s) => s.translation ?? s.text),
+      createdAt: r.completedAt ?? 0,
+    };
   }
   const diarizations: DiarizationVersion[] = [];
   if (r.turns) {
-    diarizations.push({ id: 'v1', name: 'Speakers (version 1)', createdAt: r.completedAt ?? 0, turns: r.turns, names: r.names ?? {}, origin: 'migrated' });
+    diarizations.push({
+      id: 'v1',
+      name: 'Speakers (version 1)',
+      createdAt: r.completedAt ?? 0,
+      turns: r.turns,
+      names: r.names ?? {},
+      origin: 'migrated',
+    });
   }
   const { turns: _t, names: _n, segments: _s, ...rest } = r;
   return {
@@ -67,7 +79,13 @@ export const activeVersion = (j: StoredJob): DiarizationVersion | undefined =>
 const nextId = (j: StoredJob) => `v${Math.max(0, ...j.diarizations.map((v) => Number(v.id.slice(1)) || 0)) + 1}`;
 
 /** Add (or, for a language already present, replace only that language) a translation. */
-export function addTranslation(j: StoredJob, lang: string, texts: string[], now: number, engine?: 'openai' | 'local'): StoredJob {
+export function addTranslation(
+  j: StoredJob,
+  lang: string,
+  texts: string[],
+  now: number,
+  engine?: 'openai' | 'local',
+): StoredJob {
   return { ...j, translations: { ...j.translations, [lang]: { lang, texts, createdAt: now, engine } } };
 }
 
@@ -77,9 +95,23 @@ export function removeTranslation(j: StoredJob, lang: string): StoredJob {
 }
 
 /** Add a diarization version and make it the active one. */
-export function addDiarization(j: StoredJob, turns: Turn[], names: SpeakerNames, now: number, name?: string, origin: DiarizationVersion['origin'] = 'auto'): StoredJob {
+export function addDiarization(
+  j: StoredJob,
+  turns: Turn[],
+  names: SpeakerNames,
+  now: number,
+  name?: string,
+  origin: DiarizationVersion['origin'] = 'auto',
+): StoredJob {
   const id = nextId(j);
-  const v: DiarizationVersion = { id, name: name ?? `Speakers (version ${id.slice(1)})`, createdAt: now, turns, names, origin };
+  const v: DiarizationVersion = {
+    id,
+    name: name ?? `Speakers (version ${id.slice(1)})`,
+    createdAt: now,
+    turns,
+    names,
+    origin,
+  };
   return { ...j, diarizations: [...j.diarizations, v], activeDiarization: id };
 }
 
@@ -101,7 +133,11 @@ export function renameVersion(j: StoredJob, id: string, name: string): StoredJob
 export function deleteVersion(j: StoredJob, id: string): StoredJob {
   if (j.diarizations.length <= 1 || !j.diarizations.some((v) => v.id === id)) return j;
   const left = j.diarizations.filter((v) => v.id !== id);
-  return { ...j, diarizations: left, activeDiarization: j.activeDiarization === id ? left[left.length - 1].id : j.activeDiarization };
+  return {
+    ...j,
+    diarizations: left,
+    activeDiarization: j.activeDiarization === id ? left[left.length - 1].id : j.activeDiarization,
+  };
 }
 
 /** New version from the active (else first) one, re-clustered to exactly `count` speakers. No model run. */
@@ -109,7 +145,10 @@ export function recluster(j: StoredJob, count: number, now: number): StoredJob |
   const base = activeVersion(j) ?? j.diarizations[0];
   if (!base || !base.turns.length) return null;
   const n = Math.max(1, Math.min(Math.floor(count), base.turns.length));
-  const labels = clusterEmbeddings(base.turns.map((t) => t.embedding), { count: n });
+  const labels = clusterEmbeddings(
+    base.turns.map((t) => t.embedding),
+    { count: n },
+  );
   const turns = base.turns.map((t, i) => ({ ...t, speaker: labels[i] }));
   return addDiarization(j, turns, {}, now, `${n} ${n === 1 ? 'speaker' : 'speakers'} (re-clustered)`, 'recluster');
 }

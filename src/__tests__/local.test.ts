@@ -29,7 +29,9 @@ describe('LocalEngine', () => {
       { start: 60, end: 65, text: 'tail' }, // no chunks → window text
     ]);
     expect(asr.mock.calls[0][1]).toMatchObject({ return_timestamps: true, language: 'de' });
-    expect(factory).toHaveBeenCalledWith(expect.objectContaining({ hfId: 'onnx-community/whisper-tiny', device: 'wasm' }));
+    expect(factory).toHaveBeenCalledWith(
+      expect.objectContaining({ hfId: 'onnx-community/whisper-tiny', device: 'wasm' }),
+    );
     const phases = prog.mock.calls.map((c) => c[0].phase);
     expect(phases).toContain('download');
     expect(phases).toContain('transcribe');
@@ -70,21 +72,28 @@ describe('LocalEngine', () => {
 
   it('surfaces load failure as EngineError', async () => {
     const factory = vi.fn().mockRejectedValue(new Error('boom'));
-    await expect(new LocalEngine({ factory, decode: pcm, device: 'wasm' }).transcribe(new Blob(['x']))).rejects.toThrow(/boom/);
+    await expect(new LocalEngine({ factory, decode: pcm, device: 'wasm' }).transcribe(new Blob(['x']))).rejects.toThrow(
+      /boom/,
+    );
   });
 
   it('stops when aborted', async () => {
     const { factory } = stub();
     const ac = new AbortController();
     ac.abort();
-    await expect(new LocalEngine({ factory, decode: pcm, device: 'wasm' }).transcribe(new Blob(['x']), { signal: ac.signal })).rejects.toMatchObject({ kind: 'aborted' });
+    await expect(
+      new LocalEngine({ factory, decode: pcm, device: 'wasm' }).transcribe(new Blob(['x']), { signal: ac.signal }),
+    ).rejects.toMatchObject({ kind: 'aborted' });
   });
 
   describe('language detection', () => {
     const mk = (detect: (a: Float32Array) => Promise<string>) => {
-      const asr = Object.assign(vi.fn().mockResolvedValue({ text: 'x', chunks: [{ text: 'bonjour', timestamp: [0, 1] }] }), {
-        detectLanguage: vi.fn(detect),
-      });
+      const asr = Object.assign(
+        vi.fn().mockResolvedValue({ text: 'x', chunks: [{ text: 'bonjour', timestamp: [0, 1] }] }),
+        {
+          detectLanguage: vi.fn(detect),
+        },
+      );
       return { asr, factory: vi.fn().mockResolvedValue(asr) as unknown as PipelineFactory };
     };
 

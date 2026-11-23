@@ -88,7 +88,7 @@ export function splitSpeaker(turns: Turn[], id: number): { turns: Turn[]; newId:
   if (idx.length < 2) return null;
   const labels = clusterEmbeddings(
     idx.map((i) => turns[i].embedding),
-    { count: 2 }
+    { count: 2 },
   );
   const newId = Math.max(-1, ...turns.map((t) => t.speaker)) + 1;
   const out = turns.slice();
@@ -109,10 +109,13 @@ export function speakerAt(turns: Turn[], start: number, end: number): number | u
   }
   if (score.size) return [...score.entries()].sort((a, b) => b[1] - a[1])[0][0];
   const mid = (start + end) / 2;
-  return turns.reduce((best, t) => {
-    const d = Math.min(Math.abs(t.start - mid), Math.abs(t.end - mid));
-    return d < best.d ? { d, s: t.speaker } : best;
-  }, { d: Infinity, s: turns[0].speaker }).s;
+  return turns.reduce(
+    (best, t) => {
+      const d = Math.min(Math.abs(t.start - mid), Math.abs(t.end - mid));
+      return d < best.d ? { d, s: t.speaker } : best;
+    },
+    { d: Infinity, s: turns[0].speaker },
+  ).s;
 }
 
 export type SpeakerNames = Record<number, string>;
@@ -128,7 +131,10 @@ export function labelSegments(segments: Segment[], turns: Turn[], names: Speaker
 }
 
 /** Seconds spoken per speaker, and the longest turns for audio previews. */
-export function speakerSummary(turns: Turn[], id: number): { seconds: number; samples: Array<{ start: number; end: number }> } {
+export function speakerSummary(
+  turns: Turn[],
+  id: number,
+): { seconds: number; samples: Array<{ start: number; end: number }> } {
   const mine = turns.filter((t) => t.speaker === id);
   const seconds = mine.reduce((a, t) => a + (t.end - t.start), 0);
   const samples = mine

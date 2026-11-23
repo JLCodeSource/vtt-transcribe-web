@@ -44,4 +44,4 @@ After the report, complete `AGENTS.md` section 6: close off what is necessary, r
 refactorings), `bd dolt push`, tell the coordinator you are ready for archival, and wait. **Do not archive the session
 yourself.** The coordinator asks the user, and archives only with approval.
 
-*Canonical copy: `vtt-transcribe-server/docs/worker-prompt.md`. Copies in the other vtt repos differ only in the repo name.*
+_Canonical copy: `vtt-transcribe-server/docs/worker-prompt.md`. Copies in the other vtt repos differ only in the repo name._

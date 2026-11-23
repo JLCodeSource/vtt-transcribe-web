@@ -120,9 +120,12 @@ export const defaultPairFactory: PairFactory = async ({ pair, onFile }) => {
     },
   } as never);
   const run: PairTranslate = async (texts) => {
-    const res = (await (t as unknown as (x: string[], o: object) => Promise<Array<{ translation_text: string }>>)(texts, {
-      max_new_tokens: 256,
-    })) as Array<{ translation_text: string }>;
+    const res = (await (t as unknown as (x: string[], o: object) => Promise<Array<{ translation_text: string }>>)(
+      texts,
+      {
+        max_new_tokens: 256,
+      },
+    )) as Array<{ translation_text: string }>;
     return res.map((r) => r.translation_text);
   };
   run.dispose = () => (t as unknown as { dispose(): Promise<void> }).dispose();
@@ -177,20 +180,28 @@ export class LocalTranslator implements Translator {
     let p = this.cache.get(pair);
     if (!p) {
       const files = new Map<string, number>();
-      o.onProgress?.({ phase: 'download', fraction: 0, message: `Loading translation model ${pair} (≈ 75 MB, cached after first use)…` });
+      o.onProgress?.({
+        phase: 'download',
+        fraction: 0,
+        message: `Loading translation model ${pair} (≈ 75 MB, cached after first use)…`,
+      });
       p = this.factory({
         pair,
         onFile: (f, frac) => {
           if (frac != null) files.set(f, frac);
           const v = [...files.values()];
           const avg = v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
-          o.onProgress?.({ phase: 'download', fraction: avg, message: `Downloading translation model… ${avg == null ? '' : Math.round(avg * 100) + '%'}` });
+          o.onProgress?.({
+            phase: 'download',
+            fraction: avg,
+            message: `Downloading translation model… ${avg == null ? '' : Math.round(avg * 100) + '%'}`,
+          });
         },
       }).catch((e: unknown) => {
         this.cache.delete(pair);
         throw new EngineError(
           `No on-device translation model for ${pair.replace('-', ' → ')} could be loaded (${e instanceof Error ? e.message : String(e)}). Try OpenAI mode, which supports every language.`,
-          'engine'
+          'engine',
         );
       });
       this.cache.set(pair, p);

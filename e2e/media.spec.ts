@@ -18,14 +18,19 @@ async function mock(page: Page) {
       riff: buf.includes(Buffer.from('RIFF')) && buf.includes(Buffer.from('WAVE')),
     });
     await route.fulfill({
-      status: 200, headers: CORS, contentType: 'application/json',
+      status: 200,
+      headers: CORS,
+      contentType: 'application/json',
       body: JSON.stringify({ segments: [{ start: 1, end: 2, text: `part ${uploads.length}` }] }),
     });
   });
   return uploads;
 }
 
-test('OpenAI chunking: a big file is decoded in the browser and sent as several WAV parts with offset timestamps', async ({ page, browserName }) => {
+test('OpenAI chunking: a big file is decoded in the browser and sent as several WAV parts with offset timestamps', async ({
+  page,
+  browserName,
+}) => {
   const uploads = await mock(page);
   // Lower the limits so the 22 s mp3 takes the same path a 25+ MB file takes (3 chunks of 10 s).
   await page.addInitScript(() => {
@@ -43,17 +48,23 @@ test('OpenAI chunking: a big file is decoded in the browser and sent as several 
   // Playwright's WebKit does not expose binary multipart bodies, so inspect payload bytes elsewhere only.
   if (browserName !== 'webkit') {
     expect(uploads.every((u) => u.riff)).toBe(true);
-  // 10 s of 16 kHz mono 16-bit = 320 KB (+ multipart overhead); last part is the ~2.3 s remainder
-  expect(uploads[0].size).toBeGreaterThan(320000);
-  expect(uploads[0].size).toBeLessThan(330000);
-  expect(uploads[2].size).toBeLessThan(100000);
+    // 10 s of 16 kHz mono 16-bit = 320 KB (+ multipart overhead); last part is the ~2.3 s remainder
+    expect(uploads[0].size).toBeGreaterThan(320000);
+    expect(uploads[0].size).toBeLessThan(330000);
+    expect(uploads[2].size).toBeLessThan(100000);
   }
   // Timestamps continue across chunks: 1, 11, 21 s
   await expect(page.locator('ol li time')).toHaveText(['00:01', '00:11', '00:21']);
 });
 
 // Chromium never decodes the video track, so H.264 video is fine as long as the AUDIO codec is available.
-const videos = ['video-vp8-opus.webm', 'video-theora-vorbis.ogv', 'video-h264-mp3.mp4', 'video-vp9-opus.mp4', 'video-h264-aac.mp4'];
+const videos = [
+  'video-vp8-opus.webm',
+  'video-theora-vorbis.ogv',
+  'video-h264-mp3.mp4',
+  'video-vp9-opus.mp4',
+  'video-h264-aac.mp4',
+];
 for (const name of videos) {
   test(`on-device engine decodes ${name} (video container, audio track)`, async ({ page }) => {
     // Phone/camera mp4 files carry AAC audio; those run only where an AAC decoder exists (see playwright.config.ts).

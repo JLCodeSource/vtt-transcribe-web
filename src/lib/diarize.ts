@@ -55,9 +55,14 @@ export const defaultModelsFactory: ModelsFactory = async ({ onFile }) => {
     async speechSpans(samples) {
       const inputs = await segProc(samples);
       const { logits } = await segModel(inputs);
-      const res = (segProc as unknown as {
-        post_process_speaker_diarization(l: unknown, n: number): Array<Array<{ id: number; start: number; end: number }>>;
-      }).post_process_speaker_diarization(logits, samples.length);
+      const res = (
+        segProc as unknown as {
+          post_process_speaker_diarization(
+            l: unknown,
+            n: number,
+          ): Array<Array<{ id: number; start: number; end: number }>>;
+        }
+      ).post_process_speaker_diarization(logits, samples.length);
       // class 0 is silence; 1-3 single speakers; 4-6 overlaps. Everything but 0 is speech.
       return res[0].filter((s) => s.id !== 0).map((s) => ({ start: s.start, end: s.end, id: s.id }));
     },
@@ -104,7 +109,11 @@ export class Diarizer {
     const windows = chunkPcm(pcm, WINDOW_SECONDS);
     for (let i = 0; i < windows.length; i++) {
       if (signal?.aborted) throw new EngineError('Cancelled.', 'aborted');
-      onProgress?.({ phase: 'transcribe', fraction: (i / windows.length) * 0.5, message: `Finding speech ${i + 1} of ${windows.length}…` });
+      onProgress?.({
+        phase: 'transcribe',
+        fraction: (i / windows.length) * 0.5,
+        message: `Finding speech ${i + 1} of ${windows.length}…`,
+      });
       for (const s of mergeSpans(await models.speechSpans(windows[i].samples))) {
         spans.push({ start: s.start + windows[i].offset, end: s.end + windows[i].offset });
       }
@@ -116,9 +125,16 @@ export class Diarizer {
     const embs: Float32Array[] = [];
     for (let i = 0; i < stretches.length; i++) {
       if (signal?.aborted) throw new EngineError('Cancelled.', 'aborted');
-      onProgress?.({ phase: 'transcribe', fraction: 0.5 + (i / stretches.length) * 0.45, message: `Identifying voices ${i + 1} of ${stretches.length}…` });
+      onProgress?.({
+        phase: 'transcribe',
+        fraction: 0.5 + (i / stretches.length) * 0.45,
+        message: `Identifying voices ${i + 1} of ${stretches.length}…`,
+      });
       const a = Math.floor(stretches[i].start * SAMPLE_RATE);
-      const b = Math.min(pcm.length, Math.floor(Math.min(stretches[i].end, stretches[i].start + MAX_EMBED_SECONDS) * SAMPLE_RATE));
+      const b = Math.min(
+        pcm.length,
+        Math.floor(Math.min(stretches[i].end, stretches[i].start + MAX_EMBED_SECONDS) * SAMPLE_RATE),
+      );
       embs.push(normalise(await models.embed(pcm.subarray(a, b))));
     }
 
@@ -128,7 +144,12 @@ export class Diarizer {
       threshold: options.threshold ?? DEFAULT_THRESHOLD,
       count: options.speakers,
     });
-    const turns: Turn[] = stretches.map((s, i) => ({ start: s.start, end: s.end, embedding: embs[i], speaker: labels[i] }));
+    const turns: Turn[] = stretches.map((s, i) => ({
+      start: s.start,
+      end: s.end,
+      embedding: embs[i],
+      speaker: labels[i],
+    }));
     onProgress?.({ phase: 'transcribe', fraction: 1, message: 'Done' });
     return turns;
   }
@@ -154,11 +175,18 @@ export class Diarizer {
         if (frac != null) files.set(file, frac);
         const v = [...files.values()];
         const avg = v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
-        onProgress?.({ phase: 'download', fraction: avg, message: `Downloading speaker models… ${avg == null ? '' : Math.round(avg * 100) + '%'}` });
+        onProgress?.({
+          phase: 'download',
+          fraction: avg,
+          message: `Downloading speaker models… ${avg == null ? '' : Math.round(avg * 100) + '%'}`,
+        });
       },
     }).catch((e: unknown) => {
       this.models = undefined;
-      throw new EngineError(`Could not load the speaker models: ${e instanceof Error ? e.message : String(e)}`, 'engine');
+      throw new EngineError(
+        `Could not load the speaker models: ${e instanceof Error ? e.message : String(e)}`,
+        'engine',
+      );
     });
     return this.models;
   }

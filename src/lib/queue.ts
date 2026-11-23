@@ -35,7 +35,7 @@ export class JobQueue<I, R> {
       now?: () => number;
       /** called after an item reaches done / failed (not cancelled). May be async; the next item waits for it. */
       onSettled?: (item: QueueItem<I, R>) => void | Promise<void>;
-    } = {}
+    } = {},
   ) {}
 
   get items(): QueueItem<I, R>[] {
@@ -56,7 +56,15 @@ export class JobQueue<I, R> {
   }
 
   add(name: string, input: I, id = `q${++this.seq}`): QueueItem<I, R> {
-    const item: QueueItem<I, R> = { id, name, input, status: 'queued', progress: null, step: '', addedAt: (this.opts.now ?? Date.now)() };
+    const item: QueueItem<I, R> = {
+      id,
+      name,
+      input,
+      status: 'queued',
+      progress: null,
+      step: '',
+      addedAt: (this.opts.now ?? Date.now)(),
+    };
     this.list.push(item);
     this.emit();
     void this.pump();

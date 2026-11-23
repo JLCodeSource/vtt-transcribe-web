@@ -14,7 +14,11 @@
     translating?: LiveItem;
     loadAudio: () => Promise<Blob | undefined>;
     onfinish: (turns: Turn[] | null, names: SpeakerNames) => Promise<void>;
-    onaddlanguage: (lang: string, engine: 'openai' | 'local', source?: string) => Promise<'queued' | 'needs-source' | 'missing'>;
+    onaddlanguage: (
+      lang: string,
+      engine: 'openai' | 'local',
+      source?: string,
+    ) => Promise<'queued' | 'needs-source' | 'missing'>;
     /** a failed translation for this result, to show instead of failing silently */
     translateError?: LiveItem;
     ondismisserror: (id: string) => void;
@@ -32,14 +36,22 @@
   let reviewing = $state(p.job.awaitingReview);
   // language shown (null = original); starts on the newest translation
   // svelte-ignore state_referenced_locally
-  let lang = $state<string | null>(Object.values(p.job.translations).sort((a, b) => a.createdAt - b.createdAt).at(-1)?.lang ?? null);
+  let lang = $state<string | null>(
+    Object.values(p.job.translations)
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .at(-1)?.lang ?? null,
+  );
   let audio = $state<Blob | undefined>();
   let audioReady = $state(false);
   let busy = $state(false);
   async function finish(t: Turn[] | null, n: SpeakerNames) {
     reviewing = false;
     busy = true;
-    try { await p.onfinish(t, n); } finally { busy = false; }
+    try {
+      await p.onfinish(t, n);
+    } finally {
+      busy = false;
+    }
   }
   $effect(() => {
     void p.loadAudio().then((a) => ((audio = a), (audioReady = true)));
@@ -51,7 +63,11 @@
 
 {#if p.translating && (p.job.awaitingReview || !Object.keys(p.job.translations).length)}
   <ProgressView
-    progress={p.translating.progress ?? { phase: 'transcribe', fraction: null, message: p.translating.status === 'queued' ? 'Translation is waiting its turn…' : 'Translating…' }}
+    progress={p.translating.progress ?? {
+      phase: 'transcribe',
+      fraction: null,
+      message: p.translating.status === 'queued' ? 'Translation is waiting its turn…' : 'Translating…',
+    }}
     oncancel={() => p.oncancel(p.translating!.id)}
   />
 {:else if reviewing && version && audioReady}
@@ -68,13 +84,31 @@
 {:else if !reviewing}
   {#if p.job.warning}<p class="warn" role="alert">{p.job.warning}</p>{/if}
   {#if p.job.ranOn}<p class="ranon" data-testid="ran-on">Transcribed {p.job.ranOn}.</p>{/if}
-  <p class="ranon">{describeRetention(p.job)}. <a href="#jobs" onclick={(e) => { e.preventDefault(); p.onback(); }}>Change in Jobs</a></p>
+  <p class="ranon">
+    {describeRetention(p.job)}.
+    <a
+      href="#jobs"
+      onclick={(e) => {
+        e.preventDefault();
+        p.onback();
+      }}
+    >
+      Change in Jobs
+    </a>
+  </p>
   {#if p.translateError}
-    <p class="warn" role="alert">Translation failed: {p.translateError.error ?? 'something went wrong.'} <button type="button" onclick={() => p.ondismisserror(p.translateError!.id)}>Dismiss</button></p>
+    <p class="warn" role="alert">
+      Translation failed: {p.translateError.error ?? 'something went wrong.'}
+      <button type="button" onclick={() => p.ondismisserror(p.translateError!.id)}>Dismiss</button>
+    </p>
   {/if}
   {#if p.translating}
     <ProgressView
-      progress={p.translating.progress ?? { phase: 'transcribe', fraction: null, message: p.translating.status === 'queued' ? 'Translation is waiting its turn…' : 'Translating…' }}
+      progress={p.translating.progress ?? {
+        phase: 'transcribe',
+        fraction: null,
+        message: p.translating.status === 'queued' ? 'Translation is waiting its turn…' : 'Translating…',
+      }}
       oncancel={() => p.oncancel(p.translating!.id)}
     />
   {/if}
@@ -95,6 +129,13 @@
 {/if}
 
 <style>
-  .ranon { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.5rem; }
-  .warn { color: var(--err); margin: 0; }
+  .ranon {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 0 0 0.5rem;
+  }
+  .warn {
+    color: var(--err);
+    margin: 0;
+  }
 </style>

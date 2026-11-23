@@ -52,17 +52,23 @@ describe('OpenAIEngine', () => {
     [500, 'bad-request'],
   ])('maps HTTP %i to %s', async (status, kind) => {
     const f = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { message: 'm' } }), { status }));
-    await expect(new OpenAIEngine({ apiKey: FAKE, fetchImpl: f }).transcribe(new Blob(['x']))).rejects.toMatchObject({ kind });
+    await expect(new OpenAIEngine({ apiKey: FAKE, fetchImpl: f }).transcribe(new Blob(['x']))).rejects.toMatchObject({
+      kind,
+    });
   });
 
   it('reports opaque network/CORS failures as network errors', async () => {
     const f = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
-    await expect(new OpenAIEngine({ apiKey: FAKE, fetchImpl: f }).transcribe(new Blob(['x']))).rejects.toMatchObject({ kind: 'network' });
+    await expect(new OpenAIEngine({ apiKey: FAKE, fetchImpl: f }).transcribe(new Blob(['x']))).rejects.toMatchObject({
+      kind: 'network',
+    });
   });
 
   it('requires a key and never sends anything without one', async () => {
     const f = vi.fn();
-    await expect(new OpenAIEngine({ apiKey: '  ', fetchImpl: f }).transcribe(new Blob(['x']))).rejects.toBeInstanceOf(EngineError);
+    await expect(new OpenAIEngine({ apiKey: '  ', fetchImpl: f }).transcribe(new Blob(['x']))).rejects.toBeInstanceOf(
+      EngineError,
+    );
     expect(f).not.toHaveBeenCalled();
   });
 

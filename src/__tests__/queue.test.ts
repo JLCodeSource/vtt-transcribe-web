@@ -16,10 +16,19 @@ function harness() {
         log.push(`start ${item.input}`);
         ctx.setStep('Transcribing');
         ctx.onProgress({ phase: 'transcribe', fraction: 0.5, message: 'half' });
-        const done = () => { active--; log.push(`end ${item.input}`); };
-        ctx.signal.addEventListener('abort', () => { done(); reject(Object.assign(new Error('aborted'), { kind: 'aborted' })); });
-        gates.set(item.input, () => { done(); resolve(`result ${item.input}`); });
-      })
+        const done = () => {
+          active--;
+          log.push(`end ${item.input}`);
+        };
+        ctx.signal.addEventListener('abort', () => {
+          done();
+          reject(Object.assign(new Error('aborted'), { kind: 'aborted' }));
+        });
+        gates.set(item.input, () => {
+          done();
+          resolve(`result ${item.input}`);
+        });
+      }),
   );
   return { queue, log, gates, maxActive: () => maxActive };
 }
@@ -34,10 +43,13 @@ describe('JobQueue', () => {
     expect(h.log).toEqual(['start A']);
     expect(h.queue.position(h.queue.items[1].id)).toBe(1);
     expect(h.queue.position(h.queue.items[2].id)).toBe(2);
-    h.gates.get('A')!(); await tick();
+    h.gates.get('A')!();
+    await tick();
     expect(h.log).toEqual(['start A', 'end A', 'start B']);
-    h.gates.get('B')!(); await tick();
-    h.gates.get('C')!(); await tick();
+    h.gates.get('B')!();
+    await tick();
+    h.gates.get('C')!();
+    await tick();
     expect(h.log).toEqual(['start A', 'end A', 'start B', 'end B', 'start C', 'end C']);
     expect(h.maxActive()).toBe(1);
     expect(h.queue.items.map((i) => i.status)).toEqual(['done', 'done', 'done']);
@@ -65,15 +77,25 @@ describe('JobQueue', () => {
     await tick();
     expect(h.log).toEqual(['start A', 'end A', 'start C']);
     expect(h.queue.items.map((i) => i.status)).toEqual(['cancelled', 'cancelled', 'running']);
-    h.gates.get('C')!(); await tick();
+    h.gates.get('C')!();
+    await tick();
     expect(h.maxActive()).toBe(1);
   });
 
   it('a failing item does not stop the queue, and settles callbacks run before the next item starts', async () => {
     const order: string[] = [];
     const q = new JobQueue<string, string>(
-      async (item) => { order.push(`run ${item.input}`); if (item.input === 'bad') throw new Error('boom'); return 'ok'; },
-      { onSettled: async (i) => { await tick(); order.push(`settled ${i.input} ${i.status}`); } }
+      async (item) => {
+        order.push(`run ${item.input}`);
+        if (item.input === 'bad') throw new Error('boom');
+        return 'ok';
+      },
+      {
+        onSettled: async (i) => {
+          await tick();
+          order.push(`settled ${i.input} ${i.status}`);
+        },
+      },
     );
     q.add('bad', 'bad');
     q.add('good', 'good');
@@ -88,7 +110,8 @@ describe('JobQueue', () => {
     await tick();
     h.queue.remove(a.id);
     expect(h.queue.items).toHaveLength(1);
-    h.gates.get('A')!(); await tick();
+    h.gates.get('A')!();
+    await tick();
     h.queue.remove(a.id);
     expect(h.queue.items).toHaveLength(0);
   });
@@ -96,7 +119,11 @@ describe('JobQueue', () => {
   it('retry puts a failed item back at the end of the line and runs it again', async () => {
     let fail = true;
     const ran: string[] = [];
-    const q = new JobQueue<string, string>(async (item) => { ran.push(item.input); if (item.input === 'a' && fail) throw new Error('boom'); return 'ok'; });
+    const q = new JobQueue<string, string>(async (item) => {
+      ran.push(item.input);
+      if (item.input === 'a' && fail) throw new Error('boom');
+      return 'ok';
+    });
     const a = q.add('a', 'a');
     await new Promise((r) => setTimeout(r, 10));
     expect(q.items[0].status).toBe('failed');

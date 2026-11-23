@@ -3,7 +3,15 @@ import { SCHEMA } from './versions';
 import { JobStore, StoreError, type StoredJob } from './store';
 import { expiryFor, sweepExpired, type Retention } from './retention';
 import type { Outcome, Task, JobOptions } from './pipeline';
-import { addDiarization, addTranslation, deleteVersion, recluster, renameVersion, setActive, updateActive } from './versions';
+import {
+  addDiarization,
+  addTranslation,
+  deleteVersion,
+  recluster,
+  renameVersion,
+  setActive,
+  updateActive,
+} from './versions';
 
 export type LiveItem = QueueItem<Task, Outcome>;
 
@@ -88,7 +96,9 @@ export class JobService {
   /** what the Jobs view lists: the store plus anything that could not be stored */
   get jobs(): StoredJob[] {
     const ids = new Set(this.stored.map((j) => j.id));
-    return [...Array.from(this.unsaved.values()).filter((j) => !ids.has(j.id)), ...this.stored].sort((a, b) => b.completedAt - a.completedAt);
+    return [...Array.from(this.unsaved.values()).filter((j) => !ids.has(j.id)), ...this.stored].sort(
+      (a, b) => b.completedAt - a.completedAt,
+    );
   }
   isUnsaved(id: string): boolean {
     return this.unsaved.has(id);
@@ -131,7 +141,17 @@ export class JobService {
     if (r.kind === 'translate') {
       const job = await this.getJob(t.jobId);
       // ADD this language; the original segments and every other translation stay as they are
-      if (job) await this.save({ ...addTranslation(job, t.options.target, r.segments.map((s) => s.translation ?? s.text), this.now(), t.options.engine), translate: null });
+      if (job)
+        await this.save({
+          ...addTranslation(
+            job,
+            t.options.target,
+            r.segments.map((s) => s.translation ?? s.text),
+            this.now(),
+            t.options.engine,
+          ),
+          translate: null,
+        });
       return;
     }
     if (t.kind !== 'process') return;
@@ -152,7 +172,14 @@ export class JobService {
       activeDiarization: null,
       engine: o.engine,
       awaitingReview: !!r.turns,
-      translate: r.turns && o.target && o.reviewFirst ? { engine: o.engine, target: o.target, from: o.language === 'auto' && r.detectedLang ? r.detectedLang : o.language } : null,
+      translate:
+        r.turns && o.target && o.reviewFirst
+          ? {
+              engine: o.engine,
+              target: o.target,
+              from: o.language === 'auto' && r.detectedLang ? r.detectedLang : o.language,
+            }
+          : null,
       ranOn: r.ranOn,
       warning: r.warning,
       retention,
@@ -160,7 +187,14 @@ export class JobService {
       downloadedAt: null,
       hasAudio: false,
     };
-    if (translated) job = addTranslation(job, o.target, r.segments.map((s) => s.translation ?? s.text), now, o.engine);
+    if (translated)
+      job = addTranslation(
+        job,
+        o.target,
+        r.segments.map((s) => s.translation ?? s.text),
+        now,
+        o.engine,
+      );
     if (r.turns) job = addDiarization(job, r.turns, {}, now);
     if (!(await this.save(job))) return;
     if (this.d.keepAudio()) {
@@ -174,16 +208,33 @@ export class JobService {
   }
 
   /** The speaker review was confirmed (turns+names, saved into the ACTIVE version) or skipped (turns null: no labels shown, versions kept). Queues the deferred translation, if any. */
-  async finishReview(id: string, turns: StoredJob['diarizations'][number]['turns'] | null, names: StoredJob['diarizations'][number]['names'], fallbackKey = ''): Promise<void> {
+  async finishReview(
+    id: string,
+    turns: StoredJob['diarizations'][number]['turns'] | null,
+    names: StoredJob['diarizations'][number]['names'],
+    fallbackKey = '',
+  ): Promise<void> {
     const job = await this.getJob(id);
     if (!job) return;
     await this.save({ ...(turns ? updateActive(job, turns, names) : setActive(job, null)), awaitingReview: false });
     const pending = job.translate;
     if (pending) {
       const base = this.options.get(id);
-      const options: JobOptions = base ?? { engine: pending.engine, apiKey: fallbackKey, model: 'base', language: pending.from, target: pending.target, diarize: false, speakerCount: 'auto' };
+      const options: JobOptions = base ?? {
+        engine: pending.engine,
+        apiKey: fallbackKey,
+        model: 'base',
+        language: pending.from,
+        target: pending.target,
+        diarize: false,
+        speakerCount: 'auto',
+      };
       // queued before the refresh so the UI never shows the untranslated transcript in between
-      this.queue.add(job.name, { kind: 'translate', jobId: id, segments: job.segments, from: pending.from, options }, `${id}:t`);
+      this.queue.add(
+        job.name,
+        { kind: 'translate', jobId: id, segments: job.segments, from: pending.from, options },
+        `${id}:t`,
+      );
     }
     await this.refresh();
   }
@@ -198,7 +249,11 @@ export class JobService {
   }
 
   /** Merge / split / rename in the review editor: edits the active version only. */
-  updateReview(id: string, turns: StoredJob['diarizations'][number]['turns'], names: StoredJob['diarizations'][number]['names']): Promise<boolean> {
+  updateReview(
+    id: string,
+    turns: StoredJob['diarizations'][number]['turns'],
+    names: StoredJob['diarizations'][number]['names'],
+  ): Promise<boolean> {
     return this.edit(id, (j) => updateActive(j, turns, names));
   }
   /** Re-cluster to N speakers from the stored embeddings (no model run); adds a version. */
@@ -224,7 +279,13 @@ export class JobService {
    * stored on the result once, so it is never asked again. Returns 'needs-source' (nothing queued) when it is
    * still needed, rather than guessing. OpenAI can translate without knowing the source.
    */
-  async addLanguage(id: string, target: string, engine: 'openai' | 'local', apiKey: string, source = ''): Promise<'queued' | 'needs-source' | 'missing'> {
+  async addLanguage(
+    id: string,
+    target: string,
+    engine: 'openai' | 'local',
+    apiKey: string,
+    source = '',
+  ): Promise<'queued' | 'needs-source' | 'missing'> {
     let job = await this.getJob(id);
     if (!job) return 'missing';
     if (source && source !== job.sourceLang) {
@@ -233,8 +294,20 @@ export class JobService {
     }
     if (!job.sourceLang && engine === 'local') return 'needs-source';
     const from = job.sourceLang || 'auto';
-    const options: JobOptions = { engine, apiKey, model: 'base', language: from, target, diarize: false, speakerCount: 'auto' };
-    this.queue.add(job.name, { kind: 'translate', jobId: id, segments: job.segments, from, options }, `${id}:t:${target}:${this.now()}`);
+    const options: JobOptions = {
+      engine,
+      apiKey,
+      model: 'base',
+      language: from,
+      target,
+      diarize: false,
+      speakerCount: 'auto',
+    };
+    this.queue.add(
+      job.name,
+      { kind: 'translate', jobId: id, segments: job.segments, from, options },
+      `${id}:t:${target}:${this.now()}`,
+    );
     await this.refresh();
     return 'queued';
   }

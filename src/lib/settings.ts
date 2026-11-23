@@ -26,7 +26,8 @@ export function loadTheme(): Theme {
   return t === 'light' || t === 'dark' ? t : 'system';
 }
 export function applyTheme(t: Theme): void {
-  if (t === 'system') ls()?.removeItem(THEME); // the default is not a stored preference
+  if (t === 'system')
+    ls()?.removeItem(THEME); // the default is not a stored preference
   else ls()?.setItem(THEME, t);
   if (t === 'system') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', t);
